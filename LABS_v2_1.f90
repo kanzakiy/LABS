@@ -3336,61 +3336,21 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    integer :: xx, yy, k, i
    integer :: xg, xp, yp, yg
    real :: tmpV, tmpU
-                
-   TotO2Dif = 0.0
-   TotO2Adv = 0.0
    
-   do yy = 2, n_row
-     do xx = 1, n_col
-	   if (matrix(yy,xx)%class /= p) then 
-	     xp = xx + 1 
-		 xg = xx - 1
-		 yp = yy+1
-		 yg = yy-1
-         if (yy == n_row) yp = yy
-         if (xx == 1) xg = n_col
-         if (xx == n_col) xp = 1
-		 
-	     if (Uo(xx,yy) == 0.) tmpU = 1e20
-	     if (Uo(xx,yy) /= 0.) tmpU = Uo(xx,yy)
-	     if (Vo(xx,yy) == 0.) tmpV = 1e20
-	     if (Vo(xx,yy) /= 0.) tmpV = Vo(xx,yy)
-		 
-         if (matrix(yg,xx)%class /= p) then 
-		      totO2dif = totO2dif  &
-		        + edif(yy,xx)*(o2(yg,xx)%oxygen-o2(yy,xx)%oxygen)*iox*1e-3*0.2  &
-			    + (edif(yy,xx)-edif(yg,xx))*(o2(yy,xx)%oxygen - o2(yg,xx)%oxygen)*iox*1e-3*0.2
-			  totO2Adv = totO2Adv &
-			    - (Vo(xx,yy)+abs(Vo(xx,yy)))/2.*(o2(yy,xx)%oxygen-o2(yg,xx)%oxygen)*iox*1e-3*(0.2*pixelSize)  &
-				- (Vo(xx,yy)+abs(Vo(xx,yy)))/2./tmpV*(Vo(xx,yy)-Vo(xx,yg))*o2(yy,xx)%oxygen*iox*1e-3*(0.2*pixelSize)
-		 end if 
-		 if (matrix(yy,xp)%class /= p) then
-			  totO2dif = totO2dif  &
-		       + edif(yy,xx)*(o2(yy,xp)%oxygen-o2(yy,xx)%oxygen)*iox*1e-3*0.2 
-			  totO2Adv = totO2Adv &
-			    - (Uo(xx,yy)-abs(Uo(xx,yy)))/2.*(o2(yy,xp)%oxygen-o2(yy,xx)%oxygen)*iox*1e-3*(0.2*pixelSize)  &
-				- (Uo(xx,yy)-abs(Uo(xx,yy)))/2./tmpU*(Uo(xp,yy)-Uo(xx,yy))*o2(yy,xx)%oxygen*iox*1e-3*(0.2*pixelSize)
-         end if 			   
-		 if (matrix(yy,xg)%class /= p) then 
-			  totO2dif = totO2dif  &
-		       + edif(yy,xx)*(o2(yy,xg)%oxygen-o2(yy,xx)%oxygen)*iox*1e-3*0.2   &
-			   + (edif(yy,xx)-edif(yy,xg))*(o2(yy,xx)%oxygen-o2(yy,xg)%oxygen)*iox*1e-3*0.2 
-			  totO2Adv = totO2Adv &
-			    - (Uo(xx,yy)+abs(Uo(xx,yy)))/2.*(o2(yy,xx)%oxygen-o2(yy,xg)%oxygen)*iox*1e-3*(0.2*pixelSize)  &
-				- (Uo(xx,yy)+abs(Uo(xx,yy)))/2./tmpU*(Uo(xx,yy)-Uo(xg,yy))*o2(yy,xx)%oxygen*iox*1e-3*(0.2*pixelSize)
-         end if 			  
-		 if (matrix(yp,xx)%class /= p) then 
-			  totO2dif = totO2dif  &
-		       + edif(yy,xx)*(o2(yp,xx)%oxygen-o2(yy,xx)%oxygen)*iox*1e-3*0.2 
-			  totO2Adv = totO2Adv &
-			    - (Vo(xx,yy)-abs(Vo(xx,yy)))/2.*(o2(yp,xx)%oxygen-o2(yy,xx)%oxygen)*iox*1e-3*(0.2*pixelSize)  &
-				- (Vo(xx,yy)-abs(Vo(xx,yy)))/2./tmpV*(Vo(xx,yp)-Vo(xx,yy))*o2(yy,xx)%oxygen*iox*1e-3*(0.2*pixelSize)
-         end if
-      end if 		 
-	end do 
-  end do	
+   TotO2Dif = 0.0
+   do xx = 1, n_col
+     totO2Dif = totO2Dif +   &
+       (O2(y_int,xx)%oxygen - O2(y_int+1,xx)%oxygen)*edif(y_int,xx)*iox*1e-3   &
+          /pixelSize*(0.2*pixelSize)
+   end do
    
    TotO2Dif = TotO2dif/0.2/(n_col*pixelSize)  !  mol /cm2 / yr flux
+   
+   TotO2Adv = 0.0
+   do xx = 1, n_col
+     TotO2Adv = TotO2Adv +  &
+	   O2(y_int,xx)%oxygen*Vo(xx,y_int)*iox*1e-3*(0.2*pixelSize*pixelsize)
+   end do 
    
    TotO2Adv = TotO2Adv/0.2/(n_col*pixelSize) 
    

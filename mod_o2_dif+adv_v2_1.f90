@@ -383,7 +383,7 @@ contains
   
   
   edif = dif_0
-  shear = 3.171e-1*60.*60.*24.*365. ! cm/yr (compare 1e-5 m/s; Volkenborn et al. 2012)
+  shear = 3.171e-2*60.*60.*24.*365. ! cm/yr (compare 1e-5 m/s; Volkenborn et al. 2012)
   visc =  4.79e5   ! kinematic viscosity in cm^2/yr
   
   !! lateral change in diffusitivity allowed 
