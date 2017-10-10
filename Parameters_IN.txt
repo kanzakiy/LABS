@@ -1,0 +1,22 @@
+false  	OUTPUT IS a Movie (true) or user defined (false)
+true 	Depth avoidance is on (true) or off (false)
+TRUE	Turn lability functions on (true) or off (false)
+true 	Turn sedimentation functions on (true) or off (false)
+false  	Force local mixing (true) or non-local mixing (false)
+True   	save data to disk?
+True  	create a colour representation of the matrix
+True 	create a locally averaged representation of the porosity of the matrix ?
+True 	create a  "  "                           of Pb activity
+True 	 output porosity as a function of scale ?
+1	Total number of organisms
+12	Depth of the matrix (Sediments and Water, inclusive, cm)
+12	Width of the matrix (cm)
+0.1	The size of particles .. grain size (characteristic length or diameter; cm)
+0.015	Sedimentation rate (e.g., w = 0.1, 0.01, 0.001 cm/yr)
+2.5	Average density of particles (g/cm3)
+0.8	Porosity of sediment at the sediment/water interface (0.8 = 80% H2O)
+22.3	Tracer halflife (t = 22.3 yr for 210Pb)
+10	Depth at which organisms have ~0 Probability of being found (cm)
+0	Start of output (days)
+366	End of output (days)
+10	Time  steps (Frequency of data output; days .. if a movie)
