@@ -18,7 +18,7 @@ gif_util.mod: bin_io.mod Module_Gif_2.o Module_Gif_2.f90
 mod_pfit.mod: pfit.o pfit.f90
 	$(f90comp) -c $(switch) pfit.f90
 o2_diffusion.mod: globalvariables.mod mod_o2_dif+adv.o mod_o2_dif+adv.f90
-	$(f90comp) -c $(switch) mod_o2_dif+adv_v7.f90
+	$(f90comp) -c $(switch) mod_o2_dif+adv.f90
 ns_mac_2d.mod: globalvariables.mod mod_NS_MAC_2D.o mod_NS_MAC_2D.f90
 	$(f90comp) -c $(switch) mod_NS_MAC_2D.f90
 %.o: %.f90
