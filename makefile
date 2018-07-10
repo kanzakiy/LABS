@@ -1,7 +1,7 @@
 # Start of the makefile
 # Defining variables
-objects = Module_Globals.o LABS.o Module_Gif_1.o Module_Gif_2.o \
- pfit.o  mod_o2_dif+adv.o mod_NS_MAC_2D.o 
+objects = Module_Globals.o Module_Gif_1.o Module_Gif_2.o \
+ pfit.o  mod_o2_dif+adv.o mod_NS_MAC_2D.o LABS.o  
 wrapper = umf4_f77wrapper.o
 switch = -g -fcheck=all
 libs = -lumfpack -lamd -lcholmod -lcolamd -lsuitesparseconfig -llapack -lopenblas
