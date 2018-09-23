@@ -11,7 +11,7 @@ subroutine flow_calc()
 use GlobalVariables
 implicit none
 integer :: xx, yy, cnt, cnt2, xp, xg, yp, yg
-integer :: nx , ny 
+integer :: nx , ny
 
 integer, allocatable  :: B(:,:)
 integer, allocatable  :: UP(:,:) 
@@ -43,7 +43,7 @@ real  :: Pbot = 1d2
 real  :: VelC          ! in cm/s (= 10 cm/day)
 real  :: new = 0.015d0 ! viscosity in g/cm/s/s
 real  :: delh   ! cm/pixel 
-real  :: delt   ! cm/pixel 
+real  :: delt   ! s
 real  :: delx   ! cm/pixel 
 real  :: dely   ! cm/pixel 
 
@@ -78,7 +78,8 @@ real  :: temp2(5)
 integer :: temp3(5)
 
 logical :: chk_matrix = .false.
-logical :: show_display = .false.
+logical :: show_display = .true.
+! logical :: show_display = .false.
 logical :: simple_test = .false.
 logical :: random_choice = .false.
 logical :: p_create = .true.
@@ -88,6 +89,9 @@ real  :: poro = 0.80d0
 logical :: const_bot = .false.
 logical :: const_top = .false.
 logical :: rec_binary = .false.
+! logical :: rec_binary = .true.
+logical :: chk_particles = .true.
+logical :: flg_stop = .false.
 
 character*21 numtemp
 !---------------------------
@@ -150,7 +154,7 @@ B = 100*B
 
 !!!! check the read file
 if ((rec_binary).and.(time>18700)) then 
-	open(unit = 100, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-BI'//trim(adjustl(today))  & 
+	open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-BI-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (B(xx,yy), xx = 1,nx)
@@ -162,82 +166,180 @@ end if
 flow_dir_x = .true.
 flow_dir_x = .false.  
 UP = 0; DOWN = 0
+cnt = 100
+cnt2 = 0
 ! in case flow direction is y
 if (.not.flow_dir_x) then 
 	! check top to bottom connection
-	do yy = 1, ny
-		do xx = 1, nx
-			if (B(xx,yy) /= 0) cycle
-			if (yy == 1) UP(xx,yy) = 1
-			if (yy /= 1) then
-				if (UP(xx,yy-1) == 1) UP(xx,yy) = 1
-				if (xx == 1) then
-					if (UP(2,yy) == 1) UP(xx,yy) = 1
-					if (UP(nx,yy) == 1) UP(xx,yy) = 1
-				else if (xx == nx) then
-					if (UP(nx-1,yy) == 1) UP(xx,yy) = 1
-					if (UP(1,yy) == 1) UP(xx,yy) = 1
-				else
-					if (UP(xx-1,yy) == 1) UP(xx,yy) = 1
-					if (UP(xx+1,yy) == 1) UP(xx,yy) = 1
-				end if 
-			end if 
-		end do
-		do xx = nx, 1, -1
-			if (B(xx,yy) /= 0) cycle
-			if (yy == 1) UP(xx,yy) = 1
-			if (yy /= 1) then
-				if (UP(xx,yy-1) == 1) UP(xx,yy) = 1
-				if (xx == 1) then
-					if (UP(2,yy) == 1) UP(xx,yy) = 1
-					if (UP(nx,yy) == 1) UP(xx,yy) = 1
-				else if (xx == nx) then
-					if (UP(nx-1,yy) == 1) UP(xx,yy) = 1
-					if (UP(1,yy) == 1) UP(xx,yy) = 1
-				else
-					if (UP(xx-1,yy) == 1) UP(xx,yy) = 1
-					if (UP(xx+1,yy) == 1) UP(xx,yy) = 1
-				end if 
-			end if 
-		end do 
-	end do 
-	! check bottom to top connection
-	do yy = ny, 1, -1
-		do xx = 1, nx
-			if (B(xx,yy) /= 0) cycle
-			if (yy == ny) DOWN(xx,yy) = 1
-			if (yy /= ny) then
-				if (DOWN(xx,yy+1) == 1) DOWN(xx,yy) = 1
-				if (xx == 1) then
-					if (DOWN(2,yy) == 1) DOWN(xx,yy) = 1
-					if (DOWN(nx,yy) == 1) DOWN(xx,yy) = 1
-				else if (xx == nx) then
-					if (DOWN(nx-1,yy) == 1) DOWN(xx,yy) = 1
-					if (DOWN(1,yy) == 1) DOWN(xx,yy) = 1
-				else
-					if (DOWN(xx-1,yy) == 1) DOWN(xx,yy) = 1
-					if (DOWN(xx+1,yy) == 1) DOWN(xx,yy) = 1
-				end if 
-			end if 
-		end do 
-		do xx = nx, 1, -1
-			if (B(xx,yy) /= 0) cycle
-			if (yy == ny) DOWN(xx,yy) = 1
-			if (yy /= ny) then
-				if (DOWN(xx,yy+1) == 1) DOWN(xx,yy) = 1
-				if (xx == 1) then
-					if (DOWN(2,yy) == 1) DOWN(xx,yy) = 1
-					if (DOWN(nx,yy) == 1) DOWN(xx,yy) = 1
-				else if (xx == nx) then
-					if (DOWN(nx-1,yy) == 1) DOWN(xx,yy) = 1
-					if (DOWN(1,yy) == 1) DOWN(xx,yy) = 1
-				else
-					if (DOWN(xx-1,yy) == 1) DOWN(xx,yy) = 1
-					if (DOWN(xx+1,yy) == 1) DOWN(xx,yy) = 1
-				end if 
-			end if 
-		end do 
-	end do
+    do while (cnt > 0) 
+        cnt2 = cnt2 + 1
+        cnt = 0
+        do yy = 1, ny
+            do xx = 1, nx
+                if (B(xx,yy) /= 0) cycle ! obstacles
+                if (yy == 1) UP(xx,yy) = 1
+                if (yy /= 1) then
+                    if (UP(xx,yy) == 1) cycle 
+                    if (UP(xx,yy-1) == 1) UP(xx,yy) = 1
+                    if (xx == 1) then
+                        if (UP(2,yy) == 1) UP(xx,yy) = 1
+                        if (UP(nx,yy) == 1) UP(xx,yy) = 1
+                    else if (xx == nx) then
+                        if (UP(nx-1,yy) == 1) UP(xx,yy) = 1
+                        if (UP(1,yy) == 1) UP(xx,yy) = 1
+                    else
+                        if (UP(xx-1,yy) == 1) UP(xx,yy) = 1
+                        if (UP(xx+1,yy) == 1) UP(xx,yy) = 1
+                    end if 
+                    if (UP(xx,yy) == 1) cnt = cnt + 1
+                end if 
+            end do
+            do xx = nx, 1, -1
+                if (B(xx,yy) /= 0) cycle
+                if (yy == 1) UP(xx,yy) = 1
+                if (yy /= 1) then
+                    if (UP(xx,yy) == 1) cycle 
+                    if (UP(xx,yy-1) == 1) UP(xx,yy) = 1
+                    if (xx == 1) then
+                        if (UP(2,yy) == 1) UP(xx,yy) = 1
+                        if (UP(nx,yy) == 1) UP(xx,yy) = 1
+                    else if (xx == nx) then
+                        if (UP(nx-1,yy) == 1) UP(xx,yy) = 1
+                        if (UP(1,yy) == 1) UP(xx,yy) = 1
+                    else
+                        if (UP(xx-1,yy) == 1) UP(xx,yy) = 1
+                        if (UP(xx+1,yy) == 1) UP(xx,yy) = 1
+                    end if 
+                    if (UP(xx,yy) == 1) cnt = cnt + 1 
+                end if 
+            end do 
+        end do 
+        ! check bottom to top connection
+        do yy = ny, 1, -1
+            do xx = 1, nx
+                if (B(xx,yy) /= 0) cycle
+                if (yy == ny) cycle
+                if (yy /= ny) then
+                    if (UP(xx,yy) == 1) cycle 
+                    if (UP(xx,yy+1) == 1) UP(xx,yy) = 1
+                    if (xx == 1) then
+                        if (UP(2,yy) == 1) UP(xx,yy) = 1
+                        if (UP(nx,yy) == 1) UP(xx,yy) = 1
+                    else if (xx == nx) then
+                        if (UP(nx-1,yy) == 1) UP(xx,yy) = 1
+                        if (UP(1,yy) == 1) UP(xx,yy) = 1
+                    else
+                        if (UP(xx-1,yy) == 1) UP(xx,yy) = 1
+                        if (UP(xx+1,yy) == 1) UP(xx,yy) = 1
+                    end if 
+                    if (UP(xx,yy) == 1) cnt = cnt + 1 
+                end if 
+            end do 
+            do xx = nx, 1, -1
+                if (B(xx,yy) /= 0) cycle
+                if (yy == ny) cycle
+                if (yy /= ny) then
+                    if (UP(xx,yy) == 1) cycle 
+                    if (UP(xx,yy+1) == 1) UP(xx,yy) = 1
+                    if (xx == 1) then
+                        if (UP(2,yy) == 1) UP(xx,yy) = 1
+                        if (UP(nx,yy) == 1) UP(xx,yy) = 1
+                    else if (xx == nx) then
+                        if (UP(nx-1,yy) == 1) UP(xx,yy) = 1
+                        if (UP(1,yy) == 1) UP(xx,yy) = 1
+                    else
+                        if (UP(xx-1,yy) == 1) UP(xx,yy) = 1
+                        if (UP(xx+1,yy) == 1) UP(xx,yy) = 1
+                    end if 
+                    if (UP(xx,yy) == 1) cnt = cnt + 1 
+                end if 
+            end do 
+        end do
+        ! check bottom to top connection
+        do yy = ny, 1, -1
+            do xx = 1, nx
+                if (B(xx,yy) /= 0) cycle
+                if (yy == ny) DOWN(xx,yy) = 1
+                if (yy /= ny) then
+                    if (DOWN(xx,yy) == 1) cycle 
+                    if (DOWN(xx,yy+1) == 1) DOWN(xx,yy) = 1
+                    if (xx == 1) then
+                        if (DOWN(2,yy) == 1) DOWN(xx,yy) = 1
+                        if (DOWN(nx,yy) == 1) DOWN(xx,yy) = 1
+                    else if (xx == nx) then
+                        if (DOWN(nx-1,yy) == 1) DOWN(xx,yy) = 1
+                        if (DOWN(1,yy) == 1) DOWN(xx,yy) = 1
+                    else
+                        if (DOWN(xx-1,yy) == 1) DOWN(xx,yy) = 1
+                        if (DOWN(xx+1,yy) == 1) DOWN(xx,yy) = 1
+                    end if 
+                    if (DOWN(xx,yy) == 1) cnt = cnt + 1 
+                end if 
+            end do 
+            do xx = nx, 1, -1
+                if (B(xx,yy) /= 0) cycle
+                if (yy == ny) DOWN(xx,yy) = 1
+                if (yy /= ny) then
+                    if (DOWN(xx,yy) == 1) cycle 
+                    if (DOWN(xx,yy+1) == 1) DOWN(xx,yy) = 1
+                    if (xx == 1) then
+                        if (DOWN(2,yy) == 1) DOWN(xx,yy) = 1
+                        if (DOWN(nx,yy) == 1) DOWN(xx,yy) = 1
+                    else if (xx == nx) then
+                        if (DOWN(nx-1,yy) == 1) DOWN(xx,yy) = 1
+                        if (DOWN(1,yy) == 1) DOWN(xx,yy) = 1
+                    else
+                        if (DOWN(xx-1,yy) == 1) DOWN(xx,yy) = 1
+                        if (DOWN(xx+1,yy) == 1) DOWN(xx,yy) = 1
+                    end if 
+                    if (DOWN(xx,yy) == 1) cnt = cnt + 1 
+                end if 
+            end do 
+        end do
+        ! check top to bottom 
+        do yy = 1, ny
+            do xx = 1, nx
+                if (B(xx,yy) /= 0) cycle ! obstacles
+                if (yy == 1) cycle
+                if (yy /= 1) then
+                    if (DOWN(xx,yy) == 1) cycle 
+                    if (DOWN(xx,yy-1) == 1) DOWN(xx,yy) = 1
+                    if (xx == 1) then
+                        if (DOWN(2,yy) == 1) DOWN(xx,yy) = 1
+                        if (DOWN(nx,yy) == 1) DOWN(xx,yy) = 1
+                    else if (xx == nx) then
+                        if (DOWN(nx-1,yy) == 1) DOWN(xx,yy) = 1
+                        if (DOWN(1,yy) == 1) DOWN(xx,yy) = 1
+                    else
+                        if (DOWN(xx-1,yy) == 1) DOWN(xx,yy) = 1
+                        if (DOWN(xx+1,yy) == 1) DOWN(xx,yy) = 1
+                    end if 
+                    if (DOWN(xx,yy) == 1) cnt = cnt + 1
+                end if 
+            end do
+            do xx = nx, 1, -1
+                if (B(xx,yy) /= 0) cycle
+                if (yy == 1) cycle
+                if (yy /= 1) then
+                    if (DOWN(xx,yy) == 1) cycle 
+                    if (DOWN(xx,yy-1) == 1) DOWN(xx,yy) = 1
+                    if (xx == 1) then
+                        if (DOWN(2,yy) == 1) DOWN(xx,yy) = 1
+                        if (DOWN(nx,yy) == 1) DOWN(xx,yy) = 1
+                    else if (xx == nx) then
+                        if (DOWN(nx-1,yy) == 1) DOWN(xx,yy) = 1
+                        if (DOWN(1,yy) == 1) DOWN(xx,yy) = 1
+                    else
+                        if (DOWN(xx-1,yy) == 1) DOWN(xx,yy) = 1
+                        if (DOWN(xx+1,yy) == 1) DOWN(xx,yy) = 1
+                    end if 
+                    if (DOWN(xx,yy) == 1) cnt = cnt + 1 
+                end if 
+            end do 
+        end do 
+    enddo
+    
+    print *, cnt2
 
 ! in case flow direction is x
 else if (flow_dir_x) then 
@@ -320,26 +422,26 @@ end if
 ! making a connected binary 
 CONN = 100
 where ((UP == 1).or.(DOWN == 1))
-	CONN = 0
+	CONN = 0   ! connected water = 0; obstacles and non-connected waters = 100
 end where 
 
 !!!! check the connected bindaries
-if ((rec_binary).and.(time>18700)) then 
-	open(unit = 100, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-UP'//trim(adjustl(today))  & 
+if ((rec_binary)) then 
+	open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-UP-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (UP(xx,yy), xx = 1,nx)
 	end do 
 	close(100)
 
-	open(unit = 100, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-DOWN'//trim(adjustl(today))  & 
+	open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-DOWN-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (DOWN(xx,yy), xx = 1,nx)
 	end do 
 	close(100)
 
-	open(unit = 100, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-CONN'//trim(adjustl(today))  & 
+	open(unit = 100, file = trim(adjustl(today))//'data/test2d(F)-CONN-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (CONN(xx,yy), xx = 1,nx)
@@ -370,7 +472,7 @@ end do
 ! classify the type of obstacle depending on surrounding water
 do xx = 1, nx
 	do yy = 1, ny+2
-		if (B2(xx,yy) /= 0) then
+		if (B2(xx,yy) /= 0) then              
 			cnt = B2(xx,yy)  ! i.e., 100
 			xp = xx + 1
 			xg = xx - 1
@@ -451,22 +553,28 @@ if (.not. random_choice) then
 				xx = flow_loc(pp,i)%X
 				yy = flow_loc(pp,i)%Y
 				Tp(xx,yy+1) = 900
-				if (matrix(yy,xx)%class /= i) print *, '+++ error in flow boundary +++'
+                ! print*, xx,yy,matrix(yy,xx)%class
+				if (matrix(yy,xx)%class /= i) then 
+                  print *, '+++ error in flow boundary +++'
+                  write(File_log,*) '+++ error in flow boundary +++ (x,y)=',xx,yy,'class = ',matrix(yy,xx)%class 
+                  flg_stop=.true.
+                  ! stop
+                endif
 			end if 
 		end do
 	end do
 end if 
 				
 ! check the type-classified map
-if ((rec_binary).and.(time>18700)) then 
-	open(unit = 100, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-Tp'//trim(adjustl(today))  & 
+if (rec_binary) then 
+	open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-Tp-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny+2
 		write(100,*) (Tp(xx,yy), xx = 1,nx)
 	end do 
 	close(100)
 
-	open(unit = 100, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-Tp2'//trim(adjustl(today))  & 
+	open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-Tp2-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny+2
 		write(100,*) (Tp2(xx,yy), xx = 1,nx)
@@ -504,8 +612,8 @@ do xx = 1, nx
 		cnt = cnt + 1
 	end do
 end do 
-if (cnt /= ntc) print *, 'error cnt', cnt, ntc
-if (cnt2 /= np) print *, 'error cnt2', cnt2, np
+if (cnt /= ntc) write(File_log, *) Time, 'error cnt', cnt, ntc
+if (cnt2 /= np) write(File_log, *) Time, 'error cnt2', cnt2, np
 
 ! information on neighbors of P-cells
 if (allocated(CDN)) deallocate(CDN)
@@ -579,16 +687,33 @@ do while (step < nstep)
 	! u, v boundary
 	do xx = 1, nx
 		do yy = 1, ny+2
+            xp = xx + 1
+            xg = xx - 1
+            yp = yy + 1
+            yg = yy - 1
+            if (xp == nx+1) xp = 1
+            if (xg == 0) xg = nx
+            if (yp == ny+3) yp = yy
+            if (yg == 0) yg = yy
+			
+			if (Tp(xx,yy) == 900) then ! const flow in any direction
+				ppp = 0
+				do pp = 1,2
+					if ((Vb(pp,matrix(yy-1,xx)%class)==0).and.(Ub(pp,matrix(yy-1,xx)%class)==0)) cycle
+					ppp = pp
+				end do 
+				if (ppp == 0) then 
+                    print *, time,'error to set boundary 900',xx,yy
+                    write(File_log, *) time, 'error to set boundary 900',xx,yy
+                    flg_stop = .true.
+                endif
+                if (B2(xp,yy) == 0) Um(xp,yy) = Ub(ppp,matrix(yy-1,xx)%class)*VelC
+                if (B2(xg,yy) == 0) Um(xg+1,yy) = Ub(ppp,matrix(yy-1,xx)%class)*VelC
+                if (B2(xx,yp) == 0) Vm(xx,yp) = Vb(ppp,matrix(yy-1,xx)%class)*VelC
+                if (B2(xx,yg) == 0) Vm(xx,yg+1) = Vb(ppp,matrix(yy-1,xx)%class)*VelC
+			end if 
+            
 			if (B2(xx,yy)==100) then 
-				xp = xx + 1
-				xg = xx - 1
-				yp = yy + 1
-				yg = yy - 1
-				if (xp == nx+1) xp = 1
-				if (xg == 0) xg = nx
-				if (yp == ny+3) yp = yy
-				if (yg == 0) yg = yy
-				
 				if (B2(xp,yy) == 0) Um(xp,yy) = 0.0d0
 				if (B2(xg,yy) == 0) Um(xg+1,yy) = 0.0d0
 				if (B2(xx,yp) == 0) Vm(xx,yp) = 0.0d0
@@ -602,19 +727,6 @@ do while (step < nstep)
 			if ((.not.const_top).and.(Tp(xx,yy) == 300)) then ! upper boundary; no pressure dradient in y 
 				Vm(xx,yy) = 0.0d0
 				Vm(xx,yy+1) = 0.0d0
-			end if 
-			
-			if (Tp(xx,yy) == 900) then ! const flow in any direction
-				ppp = 0
-				do pp = 1,2
-					if ((Vb(pp,matrix(yy-1,xx)%class)==0).and.(Ub(pp,matrix(yy-1,xx)%class)==0)) cycle
-					ppp = pp
-				end do 
-				if (ppp == 0) print *, 'error to set boundary 900',xx,yy
-				Um(xx+1,yy) = Ub(ppp,matrix(yy-1,xx)%class)*VelC
-				Um(xx,yy) = Ub(ppp,matrix(yy-1,xx)%class)*VelC
-				Vm(xx,yy+1) = Vb(ppp,matrix(yy-1,xx)%class)*VelC
-				Vm(xx,yy) = Vb(ppp,matrix(yy-1,xx)%class)*VelC
 			end if 
 			
 			if (xx == nx) Um(xx+1,yy) = Um(1,yy) ! continuous boundary
@@ -857,6 +969,10 @@ do while (step < nstep)
 		temp2(1) = temp2(1) -4.0d0/(delh**2)
 		xx = Cloc(CP(pp),1)
 		yy = Cloc(CP(pp),2)
+        xp = xx + 1  ! (20180912 added YK)
+        ! yp = yy + 1  ! (20180912 added YK)
+        if (xp == nx+1) xp = 1  ! (20180912 added YK)
+        ! if (yp == ny+3) yp = yy  ! (20180912 added YK)
 		bx(pp) = bx(pp) + Rc(xx,yy)
 		cnt = 1
 		do ppp = 1,4
@@ -873,9 +989,9 @@ do while (step < nstep)
 				if (const_top) bx(pp) = bx(pp) - Ptop/(delh**2)    ! constant pressure
 			else if (CDNt(pp,ppp) >=500) then    ! const. flow boundary
 				temp2(1) = temp2(1) + 1.0d0/(delh**2)
-				if (ppp == 1) bx(pp) = bx(pp) - (-delx*Fc(xx+1,yy)/(delh**2))
+				if (ppp == 1) bx(pp) = bx(pp) - (-delx*Fc(xp,yy)/(delh**2))  !  xx+1 --> xp  20180912
 				if (ppp == 2) bx(pp) = bx(pp) - (delx*Fc(xx,yy)/(delh**2))
-				if (ppp == 3) bx(pp) = bx(pp) - (-dely*Gc(xx,yy+1)/(delh**2))
+				if (ppp == 3) bx(pp) = bx(pp) - (-dely*Gc(xx,yy+1)/(delh**2))  !  yy+1 --> yp  20180912
 				if (ppp == 4) bx(pp) = bx(pp) - (dely*Gc(xx,yy)/(delh**2))
 			else ! CDNt(pp,ppp) is 100-115, i.e., obstacles
 				temp2(1) = temp2(1) + 1.0d0/(delh**2)
@@ -883,12 +999,12 @@ do while (step < nstep)
 					if (xx == nx) then
 						bx(pp) = bx(pp) - (-delx*Fc(1,yy)/(delh**2))
 					else 
-						bx(pp) = bx(pp) - (-delx*Fc(xx+1,yy)/(delh**2))
+						bx(pp) = bx(pp) - (-delx*Fc(xx+1,yy)/(delh**2))  !  xx+1 --> xp  20180912
 					end if 
 				else if (ppp == 2) then 
 					bx(pp) = bx(pp) - (delx*Fc(xx,yy)/(delh**2))
 				else if (ppp == 3) then 
-					bx(pp) = bx(pp) - (-dely*Gc(xx,yy+1)/(delh**2))
+					bx(pp) = bx(pp) - (-dely*Gc(xx,yy+1)/(delh**2))  !  yy+1 --> yp  20180912
 				else if (ppp == 4) then 
 					bx(pp) = bx(pp) - (dely*Gc(xx,yy)/(delh**2))
 				end if 
@@ -896,6 +1012,7 @@ do while (step < nstep)
 		end do 
 		ap(pp+1) = ap(pp) + cnt
 		call heapsort2(cnt,temp1(1:cnt),temp3(1:cnt))
+        if (cnt==1) temp3 = 1  ! (20180912 added YK)
 		do ppp = 1, cnt
 			ai(ap(pp)+ppp) = temp1(ppp) - 1  !! matrix index must start with 0 in UMFPACK
 			ax(ap(pp)+ppp) = temp2(temp3(ppp))
@@ -978,6 +1095,18 @@ do while (step < nstep)
 		xx = Cloc(CP(pp),1)
 		yy = Cloc(CP(pp),2)
 		Pc(xx,yy) = kai(pp)
+        if (chk_particles) then 
+          if (yy==1 .or. yy==ny+2) then
+            cycle
+          else 
+            if (matrix(yy-1,xx)%class==p) then 
+               write(*,*) time,"error: P is calculated on particles x,y=",xx,yy
+               write(File_log,*) time,"error: P is calculated on particles x,y=",xx,yy
+               flg_stop=.true.
+               ! stop
+            endif 
+          endif
+        endif
 	end do 
 	! P boundary 
 	do xx = 1,nx
@@ -1044,8 +1173,61 @@ Pg = Pc
 Dg = Dc
 Uc(:,:) = (Um(1:nx,:) + Um(2:nx+1,:))/2.0d0
 Vc(:,:) = (Vm(:,1:ny+2) + Vm(:,2:ny+3))/2.0d0 
-Uo = Uc(:,2:ny+1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
-Vo = Vc(:,2:ny+1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+Uo(:,:) = Uc(:,2:ny+1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+Vo(:,:) = Vc(:,2:ny+1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+if (chk_particles) then 
+  do yy = 1,ny
+    do xx=1,nx
+      if (matrix(yy,xx)%class ==p) then 
+        if (Uo(xx,yy)==0 .and. Vo(xx,yy)==0) then
+          cycle
+        else 
+          print *, time,'error in NS module check for flow in particles at x,y = ',xx,yy     &
+                  , 'uo,vo=', Uo(xx,yy),Vo(xx,yy), 'B2, Tp, Tp2 =',B2(xx,yy+1),Tp(xx,yy+1),Tp2(xx,yy+1)
+          write(File_log, *) time,'error in NS module check for flow in particles at x,y = ',xx,yy     &
+                  , 'uo,vo=', Uo(xx,yy),Vo(xx,yy), 'B2, Tp, Tp2 =',B2(xx,yy+1),Tp(xx,yy+1),Tp2(xx,yy+1)
+          flg_stop=.true.
+          ! stop
+       endif 
+     endif 
+   enddo
+ enddo       
+endif            
+
+! check matrix file vs type/binary files
+if (chk_particles .and. flg_stop) then 
+	open(unit = 100, file = trim(adjustl(today))//'/data/matrix-class-'  & 
+		//trim(adjustl(numtemp))//'.txt', status = 'replace')
+	do yy = 1,ny
+		write(100,*) (matrix(yy,xx)%class, xx = 1,nx)
+	end do 
+	close(100)
+    
+	open(unit = 100, file = trim(adjustl(today))//'/data/Tp(nxxny)-'  & 
+		//trim(adjustl(numtemp))//'.txt', status = 'replace')
+	do yy = 2,ny+1
+		write(100,*) (Tp(xx,yy), xx = 1,nx)
+	end do 
+	close(100)
+
+	open(unit = 100, file = trim(adjustl(today))//'/data/Tp2(nxxny)-'  & 
+		//trim(adjustl(numtemp))//'.txt', status = 'replace')
+	do yy = 2,ny+1
+		write(100,*) (Tp2(xx,yy), xx = 1,nx)
+	end do 
+	close(100)
+
+	open(unit = 100, file = trim(adjustl(today))//'/data/B2(nxxny)-'  & 
+		//trim(adjustl(numtemp))//'.txt', status = 'replace')
+	do yy = 2,ny+1
+		write(100,*) (B2(xx,yy), xx = 1,nx)
+	end do 
+	close(100)
+    
+    STOP !!!!!!!!!!!
+    
+end if 
+
 end subroutine flow_calc
 ! =================================================================
 subroutine output_flow()
@@ -1075,6 +1257,7 @@ nx = n_col; ny = n_row
 if (.not.allocated(Pc)) allocate(Pc(nx,ny+2))
 if (.not.allocated(Uc)) allocate(Uc(nx,ny+2))
 if (.not.allocated(Vc)) allocate(Vc(nx,ny+2))
+if (.not.allocated(vabs)) allocate(vabs(nx,ny+2))
 if (.not.allocated(Um)) allocate(Um(nx+1,ny+2))
 if (.not.allocated(Vm)) allocate(Vm(nx,ny+2+1))
 if (.not.allocated(Dc)) allocate(Dc(nx,ny+2))
@@ -1089,13 +1272,13 @@ Vm = Vg
 Pc = Pg
 Dc = Dg
 
-open(unit = 100, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-Um'//trim(adjustl(today))  & 
+open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-Um-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
 do yy = 1,ny+2
 	write(100,*) (Um(xx,yy), xx = 1,nx+1)
 end do 
 close(100)
-open(unit = 100, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-Vm'//trim(adjustl(today))  & 
+open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-Vm-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
 do yy = 1,ny+2+1
 	write(100,*) (Vm(xx,yy), xx = 1,nx)
@@ -1111,35 +1294,37 @@ Vt_b = sum(Vc(:,ny+2))
 Qcx = 0.0d0
 do yy = 1, ny+2
 	if (yy == 1) cycle
-	Qcx(1,yy) = Qcx(1,yy-1) + dely*(Um(1,yy-1)+Um(2,yy))/2.0d0
+	Qcx(1,yy) = Qcx(1,yy-1) + dely*(Um(1,yy-1)+Um(2,yy)+Um(1,yy)+Um(2,yy-1))/4.0d0
 	do xx = 1, nx
 		if (xx == 1) cycle
-		Qcx(xx,yy) = Qcx(xx-1,yy) - delx*(Vm(xx-1,yy) + Vm(xx-1, yy+1))/2.0d0
+		Qcx(xx,yy) = Qcx(xx-1,yy) - delx*(Vm(xx-1,yy) + Vm(xx-1, yy+1) &
+                 +Vm(xx,yy) + Vm(xx, yy+1))/4.0d0
 	end do
 end do 
 Qcy = 0.0d0
 do xx = 1, nx
 	if (xx == 1) cycle
-	Qcy(xx,1) = Qcy(xx-1,1) - delx*(Vm(xx-1,1) + Vm(xx, 2))/2.0d0
+	Qcy(xx,1) = Qcy(xx-1,1) - delx*(Vm(xx-1,1) + Vm(xx, 2)+Vm(xx,1) + Vm(xx-1, 2))/4.0d0
 	do yy = 1, ny + 2
 		if (yy == 1) cycle
-		Qcy(xx,yy) = Qcy(xx,yy-1) + dely*(Um(xx,yy-1) + Um(xx+1,yy-1))/2.0d0
+		Qcy(xx,yy) = Qcy(xx,yy-1) + dely*(Um(xx,yy-1) + Um(xx+1,yy-1)  &
+                     +Um(xx,yy) + Um(xx+1,yy))/4.0d0
 	end do 
 end do
 
-open(unit = 100, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-Uc'//trim(adjustl(today))  & 
+open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-Uc-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 200, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-Vc'//trim(adjustl(today))  & 
+open(unit = 200, file = trim(adjustl(today))//'/data/test2d(F)-Vc-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 300, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-Pc'//trim(adjustl(today))  & 
+open(unit = 300, file = trim(adjustl(today))//'/data/test2d(F)-Pc-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 400, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-Dc'//trim(adjustl(today))  & 
+open(unit = 400, file = trim(adjustl(today))//'/data/test2d(F)-Dc-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 500, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-vabs'//trim(adjustl(today))  & 
+open(unit = 500, file = trim(adjustl(today))//'/data/test2d(F)-vabs-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 600, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-Qcx'//trim(adjustl(today))  & 
+open(unit = 600, file = trim(adjustl(today))//'/data/test2d(F)-Qcx-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 700, file = 'C:/Users/YK/Desktop/biot-res/test2d(F)-Qcy'//trim(adjustl(today))  & 
+open(unit = 700, file = trim(adjustl(today))//'/data/test2d(F)-Qcy-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
 do yy = 2,ny+1
 	write(100,*) (Uc(xx,yy), xx = 1,nx)

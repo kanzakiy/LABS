@@ -4,11 +4,12 @@ objects = Module_Globals.o Module_Gif_1.o Module_Gif_2.o \
  pfit.o  mod_o2_dif+adv.o mod_NS_MAC_2D.o LABS.o  
 wrapper = umf4_f77wrapper.o
 switch = -g -fcheck=all
+# switch = 
 libs = -lumfpack -lamd -lcholmod -lcolamd -lsuitesparseconfig -llapack -lopenblas
 f90comp = gfortran
 # Makefile
-labs: $(objects)
-	$(f90comp) -o labs $(switch) $(objects) $(wrapper) $(libs)
+labs2: $(objects)
+	$(f90comp) -o $@ $(switch) $(objects) $(wrapper) $(libs)
 globalvariables.mod: Module_Globals.o Module_Globals.f90
 	$(f90comp) -c $(switch) Module_Globals.f90
 bin_io.mod: Module_Gif_1.o Module_Gif_1.f90

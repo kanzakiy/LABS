@@ -19,7 +19,7 @@ contains
     
    write(numtemp,'(i10.1)') Time
    
-   OPEN(unit = File_txtImg, File = 'C:/Users/YK/Desktop/biot-res/o2/O2data'//trim(adjustl(today))          &
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/O2data-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO Y = 1, N_row
      txtimg = 0 
@@ -30,7 +30,7 @@ contains
      END Do
    Close(File_txtimg)
    
-   OPEN(unit = File_txtImg, File = 'C:/Users/YK/Desktop/biot-res/o2/O2_use_data'//trim(adjustl(today))          &
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/O2_use_data-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO Y = 1, N_row
      txtimg = 0 
@@ -41,7 +41,7 @@ contains
      END Do
    Close(File_txtimg)
    
-   OPEN(unit = File_txtImg, File = 'C:/Users/YK/Desktop/biot-res/o2/O2_chan_data'//trim(adjustl(today))          &
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/O2_chan_data-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO Y = 1, N_row
      txtimg = 0 
@@ -52,7 +52,7 @@ contains
      END Do
    Close(File_txtimg)
    
-   OPEN(unit = File_txtImg, File = 'C:/Users/YK/Desktop/biot-res/o2/O2_dif'//trim(adjustl(today))          &
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/O2_dif-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO Y = 1, N_row
      txtimg = 0 
@@ -215,6 +215,11 @@ contains
    
    subroutine oxygen_profile()
    
+   !!!!
+   !! solving   - [c(x,t)-c(x,t-1)]/dt + <D[c(x+1,t)-c(x,t)]/dx - D[c(x,t)-c(x-1,t)]/dx>/dx - v[c(x,t)-c(x-1,t)]/dx (if v >0) - R = 0
+   !!  
+   !!  (using 1st order upwind scheme for advection, 2nd order central differenciation for diffusion term. Time is explicit, 1st order)
+   
    use GlobalVariables
    use ieee_arithmetic
    
@@ -224,7 +229,7 @@ contains
    
    integer ( kind = 4 ), allocatable :: ai( : )  ! row number where /=0
    integer ( kind = 4 ), allocatable  :: ap(:)   ! number of non-zero component at each column
-   real ( kind = 8 ), allocatable  :: ax( : )   !  conponent where /=0
+   real ( kind = 8 ), allocatable  :: ax( : )   !  component where /=0
    real ( kind = 8 ), allocatable :: b( :) 
    real  ( kind = 8 ) :: control(20)
    integer ( kind = 4 ) :: filenum
@@ -384,6 +389,7 @@ contains
   
   edif = dif_0
   shear = 3.171e-2*60.*60.*24.*365. ! cm/yr (compare 1e-5 m/s; Volkenborn et al. 2012)
+  ! shear = 3.171e-1*60.*60.*24.*365. ! cm/yr (compare 1e-5 m/s; Volkenborn et al. 2012)
   visc =  4.79e5   ! kinematic viscosity in cm^2/yr
   
   !! lateral change in diffusitivity allowed 

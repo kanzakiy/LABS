@@ -27,38 +27,56 @@
    Character*14          :: CurrentTimeString
    Real                  :: Area_Period
    Type(CoOrdinates)     :: Point
-   integer :: xx, yy
+   integer               :: xx, yy, j
    logical               :: IsWater, IsOrganism, IsParticle
    type(coordinates)     :: org_mid
-   logical :: rec_flow
+   logical               :: rec_flow
    
-   write(Today,*) "_testing_flow_shear5_v5_"   ! this string goes into names of output files
+   character*10 dumchr(3)
+   integer dumint(8)
    
+   call date_and_time(dumchr(1),dumchr(2),dumchr(3),dumint)
+   
+   write(WorkDir,*) 'C:/Users/YK/Desktop/biot-res/'
+   call getarg(1,WorkName)
+   ! write(WorkName,*) 'Egest_test1'
+   write(Today,*) trim(adjustl(WorkDir))//trim(adjustl(Workname))//'-'//trim(adjustl(dumchr(1)))
+   
+   call system ('mkdir -p '//trim(adjustl(Today)))
+   call system ('mkdir -p '//trim(adjustl(Today))//'/data')
 
-       OPEN(unit = File_Profile,  file = 'C:/Users/YK/Desktop/biot-res/DepthProfiles'          &
-                               //trim(adjustl(today))//'.OUT', status = 'unknown')
-       OPEN(unit = File_Profile2,  file = 'C:/Users/YK/Desktop/biot-res/DepthProfiles2'        &
-                               //trim(adjustl(today))//'.OUT', status = 'unknown')
-       OPEN(unit = File_Profile3,  file = 'C:/Users/YK/Desktop/biot-res/DepthProfiles3'        &
-                              //trim(adjustl(today))//'.OUT', status = 'unknown')
-       OPEN(unit = File_Profile_Re,  file = 'C:/Users/YK/Desktop/biot-res/DepthProfiles_Re'        &
-                             //trim(adjustl(today))//'.OUT', status = 'unknown')
-       OPEN(unit = File_Scaling, file = 'C:/Users/YK/Desktop/biot-res/PorosityScale'        &
-                              //trim(adjustl(today))//'.OUT', status = 'unknown')
-       OPEN(unit = File_Activity, file = 'C:/Users/YK/Desktop/biot-res/ActivitySlope'        &
-                               //trim(adjustl(today))//'.OUT', status = 'unknown')
-       OPEN(unit = File_Displace, file = 'C:/Users/YK/Desktop/biot-res/MeanDisplacement'        &
-                               //trim(adjustl(today))//'.OUT', status = 'unknown')
-       OPEN(unit = File_Displace2, file = 'C:/Users/YK/Desktop/biot-res/MeanDisplacement2'        &
-                               //trim(adjustl(today))//'.OUT', status = 'unknown')
-       OPEN(unit = Poly_fit, file = 'C:/Users/YK/Desktop/biot-res/polyFit'                           &
-                                  //trim(adjustl(today))//'.OUT', status = 'unknown')
-       OPEN(unit = File_flux, file = 'C:/Users/YK/Desktop/biot-res/flux'                           &
-                                  //trim(adjustl(today))//'.OUT', status = 'unknown')
-       OPEN(unit = File_Log, file = 'C:/Users/YK/Desktop/biot-res/log'                           &
-                                  //trim(adjustl(today))//'.txt', status = 'replace')
-       OPEN(unit = File_flux_txt, file = 'C:/Users/YK/Desktop/biot-res/flux'                           &
-                                  //trim(adjustl(today))//'.txt', status = 'unknown')
+       OPEN(unit = File_Profile,  file = trim(adjustl(Today))//          &
+                               '/DepthProfiles.OUT', status = 'unknown')
+       OPEN(unit = File_Profile2,  file = trim(adjustl(Today))//        &
+                               '/DepthProfiles2.OUT', status = 'unknown')
+       OPEN(unit = File_Profile3,  file = trim(adjustl(Today))//        &
+                              '/DepthProfiles3.OUT', status = 'unknown')
+       OPEN(unit = File_Profile_Re,  file = trim(adjustl(Today))//        &
+                             '/DepthProfiles_Re.OUT', status = 'unknown')
+       OPEN(unit = File_Scaling, file = trim(adjustl(Today))//        &
+                              '/PorosityScale.OUT', status = 'unknown')
+       OPEN(unit = File_Activity, file = trim(adjustl(Today))//        &
+                               '/ActivitySlope.OUT', status = 'unknown')
+       OPEN(unit = File_Displace, file = trim(adjustl(Today))//        &
+                               '/MeanDisplacement.OUT', status = 'unknown')
+       OPEN(unit = File_Displace2, file = trim(adjustl(Today))//        &
+                               '/MeanDisplacement2.OUT', status = 'unknown')
+       OPEN(unit = Poly_fit, file = trim(adjustl(Today))//                           &
+                                  '/polyFit.OUT', status = 'unknown')
+       OPEN(unit = File_flux, file = trim(adjustl(Today))//                           &
+                                  '/flux.OUT', status = 'unknown')
+       OPEN(unit = File_Log, file = trim(adjustl(Today))//                           &
+                                  '/log.txt', status = 'replace')
+       OPEN(unit = File_flux_txt, file = trim(adjustl(Today))//                           &
+                                  '/flux.txt', status = 'unknown')
+       OPEN(unit = File_Diet, file = trim(adjustl(Today))//                           &
+                                  '/Diet.OUT', status = 'unknown')
+       OPEN(unit = File_Core, file = trim(adjustl(Today))//                           &
+                                  '/Core.OUT', status = 'unknown')
+       OPEN(unit = File_Core_M, file = trim(adjustl(Today))//                           &
+                                  '/Core_M.txt', status = 'unknown')
+       OPEN(unit = File_Core_L, file = trim(adjustl(Today))//                           &
+                                  '/Core_L.txt', status = 'unknown')
 
    ! Begin main program loop
    
@@ -72,7 +90,7 @@
    ! resp_ON = .false.
    
    errCHk = .true.
-   errChk = .false.
+   ! errChk = .false.
    
    I_shape = .true.
    I_shape = .false.
@@ -80,8 +98,11 @@
    flow_ON = .true.
    ! flow_ON = .false.
 
-   only_sed = .True.
-   ! only_sed = .FALSE.
+   only_sed = .True.   
+   only_sed = .FALSE.
+   
+   Detail_Log = .True.
+   Detail_Log = .False.
    
    Org_ID_ishape = 1
 
@@ -94,6 +115,9 @@
     call O2pre_setup()
     Call Output_O2txtImg()
     Call Output_txtImg()
+    
+    call gnuplot_flux()
+    call gnuplot_diet()
    
    Savetime = 1 
 
@@ -133,12 +157,14 @@
 			 call org_midloc(i,org(i)%bodysize-org(i)%headsize+1,org(i)%bodysize, org_mid)
 			 flow_loc(2,i)%x = org_mid%x
 			 flow_loc(2,i)%y = org_mid%y
+             
          
          End Do        ! for each individual
          
          !  check for error 
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after org_move"; write(file_log,*)time, "err after org_move"; end if
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after org_move"; write(file_log,*)time, "err after org_move"; end if 
          end if 
@@ -166,6 +192,7 @@
          !  check for error 
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after sed"; write(file_log,*)time, "err after sed"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after sed"; write(file_log,*)time, "err after sed"; end if 
          end if 
@@ -185,6 +212,7 @@
          
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after constrain"; write(file_log,*)time, "err after constrain"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after constrain"; write(file_log,*)time, "err after constrain"; end if 
          end if 
@@ -194,6 +222,16 @@
 		   rec_flow = .false.
 		   if (flow_ON) then 
 		     if (any(abs(Vb)/=0).or.any(abs(Ub)/=0)) then 
+               
+               do i = 1,N_ind
+                 do j = 1,2
+                   if (matrix(flow_loc(j,i)%y,flow_loc(j,i)%x )%class /= i) then 
+                     write(File_log,*) Time,"err:flow boundary at x,y=", flow_loc(j,i)%x &
+                     ,   flow_loc(j,i)%y, 'class =',matrix(flow_loc(j,i)%y,flow_loc(j,i)%x )%class 
+                   endif
+                 enddo
+               enddo
+             
 			   call flow_calc()
 			   rec_flow = .true.
 			   ! if (time> 18700) call output_flow()
@@ -207,7 +245,26 @@
 			 if (any(ieee_is_nan(Uo))) then 
 			   print *, "NAN in Uo"
 			   stop 1
-			 end if			 
+			 end if	
+             
+             if (errChk) then 
+               do yy = 1, N_Row
+                 do xx = 1, N_Col
+                    if ((matrix(yy,xx)%class == p)) then
+                      if ((Vo(xx,yy)==0.0).and.(Uo(xx,yy)==0.0)) then 
+                        cycle
+                      else 
+                        print *, "particle has flow --- ERROR --- at (y,x) =", yy, xx &
+                          , 'and Vo and Uo = ',Vo(xx,yy),Uo(xx,yy)
+                        write(File_log, *) time, "particle has flow --- ERROR --- at (y,x) =", yy, xx  &
+                          , 'and Vo and Uo = ',Vo(xx,yy),Uo(xx,yy)
+                      endif 
+                    end if 
+                 end do
+               end do
+             endif
+
+             
 		   end if 
    
    !!   working only when oxygen is switched ------------
@@ -258,6 +315,7 @@
            do xx = 1, n_col
              if ((matrix(yy,xx)%class == p).and.(o2(yy,xx)%oxygen/=0.0)) then
                print *, "particle has oxygen --- permanent effect ---", yy, xx
+               write(File_log, *) "particle has oxygen --- permanent effect ---", yy, xx
              end if 
            end do
          end do
@@ -293,6 +351,7 @@
                End if
              Else              
                  call Make_matrix_chk()
+                 if (errDetect) then; print *,time, "err when outputting"; write(file_log,*)time, "err when outputting"; end if  
                  call Matrix_err_chk()
                  if (errDetect) then; print *,time, "err when outputting"; write(file_log,*)time, "err when outputting"; end if                         ! snapshots at user-defined times
                
@@ -317,6 +376,11 @@
 		   
 
        END Do    !  main time loop
+       
+       savetime = savetime-1
+        call Gnuplot_Db(" ")
+        call Gnuplot_Db("x")
+        call Gnuplot_Db("y")
 
    ! end main program
 
@@ -344,6 +408,10 @@
        Close(File_flux)
        Close(File_log)
        Close(File_flux_txt)
+       Close(File_Diet)
+       Close(File_Core)
+       Close(File_Core_M)
+       Close(File_Core_L)
 
    End Program
 
@@ -474,7 +542,7 @@
      Time_Output =(/1,25*Day,50*Day,100*Day,150*Day,200*Day,250*Day,1*Year,2*Year,3*Year,5*Year,10*year,20*year,30*Year,100*year/)
 	 end if 
 	 
-     do i = 1, N_Outputs2
+     do i = 35670, N_Outputs2
         Time_Output2(i) = i
      end do
      
@@ -483,6 +551,12 @@
         Time_Output(i) = 5000*i
      end do
 	 end if 
+     
+     if (Detail_log) then
+     deallocate(Time_output)
+     allocate(Time_output(N_outputs2))
+     time_output= time_output2
+     endif
 
    ! rescale time to units of simulation
        TimeMin =  r_TimeMin / TimeScale + Int(2.*mod(r_TimeMin,Timescale))
@@ -522,7 +596,7 @@
      Allocate (Org_Loc(MaxOrgSize, N_Ind))
      Allocate (IngestionHistory(N_Ind, Day), MovementHistory(N_Ind, Day))
      
-     Allocate (RespHistory(N_Ind, Day))      
+     Allocate (RespHistory(N_Ind, Day),EgestHistory(N_Ind, Day))      
      allocate (O2(N_row,n_col))
      allocate (matrix_chk(N_row,n_col))
 	 allocate (Dir_rec(Day,N_IND))
@@ -555,6 +629,7 @@
          Org(i)%Orientation            = 0
          Org(i)%SensoryRange           = Org(i)%Width      ! this will eventually be made a user input
          Org(i)%FaecesWidth            = Ceiling(Real(Org(i)%Width) / 4.)
+         print *,Org(i)%FaecesWidth
          Org(i)%Is%Reversing           = .false.
          Org(i)%Is%WrappingAround      = .false.
          Org(i)%Is%OnTheEdge           = .false.
@@ -584,6 +659,7 @@
          IngestionHistory(i,:)     = 0
          
          respHistory(i,:)     = 0
+         EgestHistory(i,:)     = 0
 
        End do
 
@@ -653,16 +729,23 @@
    integer :: k
    real :: ave_OM, ptcl_num
    
+   real :: EgestRate 
+   
    ! shift elements right
        MovementHistory(i,:) = EOShift (MovementHistory(i,:), -1)
        IngestionHistory(i,:) = EOShift (IngestionHistory(i,:), -1)
        RespHistory(i,:) = EOShift (RespHistory(i,:), -1)
+       EgestHistory(i,:) = EOShift (EgestHistory(i,:), -1)
        
    ! calculate moving averages of the rates
        MovementRate = Real(Sum(MovementHistory(i,:))) / Day
-       IngestRAte = Real(Sum(IngestionHistory(i,:))) / Day  !  n particle per single iteration 
+       IngestRate = Real(Sum(IngestionHistory(i,:))) / Day  !  n particle per single iteration 
+       EgestRate = Real(Sum(EgestHistory(i,:))) / Day  !  n particle per single iteration 
        RespRate_ave = Real(Sum(RespHistory(i,:))) / Day
 	   
+       write(File_Diet,*) Time*Timescale,i,MovementRate, IngestRate, EgestRate, RespRate_ave,Org(i)%Gut%Content &
+                        ,Org(i)%Move%Rate,Org(i)%Ingest%Rate,Org(i)%Gut%Capacity
+       
    ! check ingestion rates
        If (MovementRate .eq. 0) then               ! not moving
          If (Org(i)%Move%StoppedTime .eq. 0) Org(i)%Move%StoppedTime = Time  ! check stomach (i.e., caloric) intake is within tolerance
@@ -709,10 +792,12 @@
 				     ave_OM = ave_OM/ptcl_num
 				   end if 
 				   
-                   IF ( ave_OM < 0.1) then     ! if OM is low in guts
-				     Org(i)%Can%Egest = .true.       
-                     if (fullness < 1.) Org(i)%Can%Ingest = .true.
-                   end if 					 
+                   ! IF ( ave_OM < 0.1) then     ! if OM is low in guts
+				     ! Org(i)%Can%Egest = .true.       
+                     ! if (fullness < 1.) Org(i)%Can%Ingest = .true.
+                   ! end if 
+
+                   if (fullness < 1.) Org(i)%Can%Ingest = .true.                   
 				 end if 
 				 
                  if (.not.resp_ON) then 
@@ -720,6 +805,10 @@
                    If (Urand(3) .gt. Fullness) Org(i)%Can%Ingest = .true.        ! too empty .. eat
 				 end if 
                End if
+               
+               If (EgestRate .ge. IngestRate) Org(i)%Can%Egest = .true.    !! this make sure a low fullness and efficient ingestion/egestion cycles
+               ! If (EgestRate .lt. Org(i)%Ingest%Rate) Org(i)%Can%Egest = .true.    !! this make sure a low fullness and efficient ingestion/egestion cycles
+               
              End if
              End if
 			 
@@ -1397,6 +1486,7 @@
      
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after org_move(sub)"; write(file_log,*)time, "err after org_move(sub)"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after org_move(sub)"; write(file_log,*)time, "err after org_move(sub)"; end if 
 		 if ((any(Org_loc%X<0)) .or. (any(Org_loc%Y <0)) .or. (any(Org_loc%Y > N_row)) .or. (any(Org_loc%Y > N_row))) then
@@ -1510,6 +1600,7 @@
 	   
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after relocate"; write(file_log,*)time, "err after relocate"; end if
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after relocate"; write(file_log,*)time, "err after relocate"; end if 
 		 if ((any(Org_loc%X<0)) .or. (any(Org_loc%Y <0)) .or. (any(Org_loc%Y > N_row)) .or. (any(Org_loc%Y > N_row))) then
@@ -1732,6 +1823,7 @@
        
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after reverse"; write(file_log,*)time, "err after reverse"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after reverse"; write(file_log,*)time, "err after reverse"; end if 
 		 if ((any(Org_loc%X<0)) .or. (any(Org_loc%Y <0)) .or. (any(Org_loc%Y > N_row)) .or. (any(Org_loc%Y > N_row))) then
@@ -1779,6 +1871,7 @@
          
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after dead"; write(file_log,*)time, "err after dead"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after dead"; write(file_log,*)time, "err after dead"; end if 
 		 if ((any(Org_loc%X<0)) .or. (any(Org_loc%Y <0)) .or. (any(Org_loc%Y > N_row)) .or. (any(Org_loc%Y > N_row))) then
@@ -1881,6 +1974,7 @@
      
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after wrap"; write(file_log,*)time, "err after wrap"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after wrap"; write(file_log,*)time, "err after wrap"; end if 
 		 if ((any(Org_loc%X<0)) .or. (any(Org_loc%Y <0)) .or. (any(Org_loc%Y > N_row)) .or. (any(Org_loc%Y > N_row))) then
@@ -2138,6 +2232,7 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
          if (errChk) then 
          if (time > 0 ) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after populate"; write(file_log,*)time, "err after populate"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after populate"; write(file_log,*)time, "err after populate"; end if 
          end if 
@@ -2224,6 +2319,7 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
    
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after add"; write(file_log,*)time, "err after add"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after add"; write(file_log,*)time, "err after add"; end if 
 		 end if 
@@ -2339,6 +2435,7 @@ Particle(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
 
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after sedown"; write(file_log,*)time, "err after sedown"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after sedown"; write(file_log,*)time, "err after sedown"; end if 
 		 end if 
@@ -2386,6 +2483,9 @@ Particle(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
 
    integer :: xx, yy
    integer :: i
+   
+   real :: m_OM,m_poro, tmp_lab(N_Col)
+   integer :: tmp_img(N_Col)
 
    ! check bottom boundary to see if the shift is possible
        Y = N_Row
@@ -2393,11 +2493,29 @@ Particle(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
        Do X = 1, N_Col
          If (IsOrganism(CoOrdinates(Y,X))) Return  ! SHIFT NOT POSSIBLE
        End do
+       
+       m_OM = 0.
+       m_poro = 0.
+       tmp_img = 0
+       tmp_lab = 0.
 
    ! As there are no boundary problems .. do the shift
        Do X = 1, N_Col
-         if (IsParticle(CoOrdinates(Y,X))) Call Particle_remove(CoOrdinates(Y,X))
+         if (IsParticle(CoOrdinates(Y,X))) then
+           tmp_img(X) = 1
+           tmp_lab(X) = Particle(Matrix(Y,X)%Value)%OM%OMact + 1.
+           m_OM = m_OM + Particle(Matrix(Y,X)%Value)%OM%OMact 
+           m_poro = m_poro + 1.
+           Call Particle_remove(CoOrdinates(Y,X))
+         endif
        End do
+       
+       m_OM = m_OM/N_col
+       m_poro = m_poro/N_col
+       
+       write(File_Core_M,*) (tmp_img(x),x=1,N_col)
+       write(File_Core_L,*) (tmp_lab(x),x=1,N_col)
+       write(File_Core,*) Time*Timescale, m_poro, m_OM
 
        Do X = 1, N_Col
          Do Y = N_Row - 1, 1, -1
@@ -2428,6 +2546,7 @@ Particle(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
 
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after constrain(sub)"; write(file_log,*)time, "err after constrain(sub)"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after constrain(sub)"; write(file_log,*)time, "err after constrain(sub)"; end if 
          end if 
@@ -2719,6 +2838,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
  
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after push"; write(file_log,*)time, "err after push"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after push"; write(file_log,*)time, "err after push"; end if 
          end if 
@@ -2857,6 +2977,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after ingest"; write(file_log,*)time, "err after ingest"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after ingest"; write(file_log,*)time, "err after ingest"; end if 
          end if 
@@ -2880,6 +3001,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    integer :: xx, yy
    type(coordinates) :: org_mid
    
+   
    biodecay = lability_decayConstant(N_LabilityClasses)*bio_fact*fact
 
    If (LocalMixing) return                            ! no need if forcing local mixing.
@@ -2900,7 +3022,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
            loc = centre + (-1  ** k ) * k    ! distribute over the space
 
              If (IsWater(Tail(loc))) then
-               IF (Particle(Guts(j,i)%Value)%OM%OMact .gt. 0) then
+               ! IF (Particle(Guts(j,i)%Value)%OM%OMact .gt. 0) then
                Matrix(Tail(loc)%Y, Tail(loc)%X) = Guts(j,i)  !! fill the position of water in tail with a particle 
                Particle(Guts(j,i)%Value)%loc = Tail(loc)   !! location of particle is set at tail position 
                if (oxygen_ON) then 
@@ -2920,8 +3042,11 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
                      if (Particle(Guts(j,i)%Value)%OM%OMact < 0) Particle(Guts(j,i)%Value)%OM%OMact = 0.0
                  End if
 			  end if 
+              
+              ! End if
 
                Guts(j,i) = CellContent(w,w)
+               EgestHistory(i,1) = EgestHistory(i,1) + 1   ! increment the running average
 	   
 	   
 	   select case(Dir_rec(org(i)%length,i))
@@ -2937,7 +3062,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 		   print *, 'error in setting flow const---egest',Dir_rec(org(i)%length,i)
 		 end select
                
-               end if 
+               ! end if 
              End if
          End if
        End do
@@ -2946,6 +3071,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
          If (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after egest"; write(file_log,*)time, "err after egest"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after egest"; write(file_log,*)time, "err after egest"; end if 
          end if 
@@ -2972,6 +3098,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
          Image_Gut(j) = Guts(j,i)
          Guts(j,i) = CellContent(w,w)
        end do
+       
 
    ! Pack the particles down the gut and count
        Org(i)%Gut%Content = 0
@@ -2987,6 +3114,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
        
          if (errChk) then 
          call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after peristalsis"; write(file_log,*)time, "err after peristalsis"; end if 
          call Matrix_err_chk()
          if (errDetect) then; print *,time, "err after peristalsis"; write(file_log,*)time, "err after peristalsis"; end if 
          end if 
@@ -3027,9 +3155,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
     
    AsciiFile = CurrentTime //trim(adjustl(today))//'.ascii'
    write(numtemp,'(i10.1)') SaveTime
-   OPEN(unit = File_ASCII, File = 'C:/Users/YK/Desktop/biot-res/data'//trim(adjustl(today))    &
+   OPEN(unit = File_ASCII, File = trim(adjustl(today))//'/data/'    &
                 //trim(adjustl(numtemp))//'.ascii', status = 'unknown') 
-   OPEN(unit = File_txtImg_2, File = 'C:/Users/YK/Desktop/biot-res/data_2'//trim(adjustl(today))    &
+   OPEN(unit = File_txtImg_2, File = trim(adjustl(today))//'/data/'    &
                 //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO X = 1, N_col
      DO Y = 1, N_row
@@ -3076,7 +3204,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    logical :: rec_detail = .true.
     
    write(numtemp,'(i10.1)') Time
-   OPEN(unit = File_txtImg, File = 'C:/Users/YK/Desktop/biot-res/data'//trim(adjustl(today))          &
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/txtimg-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO Y = 1, N_row
      txtimg = 0 
@@ -3096,7 +3224,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Close(File_txtimg)
    
    
-   OPEN(unit = File_txtImg, File = 'C:/Users/YK/Desktop/biot-res/data_lability'//trim(adjustl(today))          &
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/lability-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO Y = 1, N_row
      txtimg_real = 0 
@@ -3112,7 +3240,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Close(File_txtimg)
 
    if (rec_detail) then 
-      OPEN(unit = File_txtImg, File = 'C:/Users/YK/Desktop/biot-res/ptcl_list'//trim(adjustl(today))          &
+      OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/ptcl_list-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO Y = 1, N_row
      txtimg = 0 
@@ -3126,7 +3254,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
      END Do
    Close(File_txtimg)
    
-      OPEN(unit = File_txtImg, File = 'C:/Users/YK/Desktop/biot-res/ptcl_list_2'//trim(adjustl(today))          &
+      OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/ptcl_list_2-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO i = 1, N_cell
          write(File_txtimg,*) i, Particle(i)%loc%Y,Particle(i)%loc%X, Particle(i)%plane
@@ -3134,7 +3262,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Close(File_txtimg)
 
    
-   OPEN(unit = File_txtImg, File = 'C:/Users/YK/Desktop/biot-res/guts_list'//trim(adjustl(today))          &
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/guts_list-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO i = 1, N_ind
      do j = 1,Org(i)%Gut%Capacity 
@@ -3149,7 +3277,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Close(File_txtimg)
    
    
-   OPEN(unit = File_txtImg, File = 'C:/Users/YK/Desktop/biot-res/org_loc_list'//trim(adjustl(today))          &
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/org_loc_list-'         &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO i = 1, N_ind
      do j = 1, Org(i)%bodySize 
@@ -3184,6 +3312,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    do i = 1, N_ind
       do j = 1, Org(i)%bodySize
+        ! print *, Org_loc(j,i)%Y,Org_loc(j,i)%X
         if (matrix_chk(Org_loc(j,i)%Y,Org_loc(j,i)%X)%class == p) then  !!  if particle (not in guts) exists
           print *, time, "error in (making mtx_chk): particle exist where organism",i," exist at", Org_loc(j,i)%Y,Org_loc(j,i)%X
           write(file_log,*) time, "error in (making mtx_chk): particle exist where organism",i," exist at",& 
@@ -3238,7 +3367,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    write(numtemp,'(i10.1)') Time
    
-   OPEN(unit = File_txtImg, File = 'C:/Users/YK/Desktop/biot-res/data_chk'//trim(adjustl(today))          &
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/chk-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO YY = 1, N_row
      txtimg = 0 
@@ -3398,6 +3527,118 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    End Subroutine fluxes
    
+   !****************************************
+   
+   subroutine Gnuplot_flux()
+   
+   use GlobalVariables
+   implicit none 
+   
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/biot-flx.plt', status = 'unknown')
+   write(File_txtImg,*)'set pm3d map  corners2color max'
+   write(File_txtImg,*)'set size square'
+   write(File_txtImg,*)'set border lw 3'
+   write(File_txtImg,*)'set size ratio 0.24'
+   write(File_txtImg,*)"set tics font 'arial, 35'"
+   write(File_txtImg,*)'set palette rgbformula 22,13,-31'
+   write(File_txtImg,*)"r1='"//trim(adjustl(today))//'/flux.OUT'//"'"
+   write(File_txtImg,*)'unset colorbox'
+   write(File_txtImg,*)'set key outside horizontal bottom'
+   write(File_txtImg,*)"plot r1 u ($1/365.0):($6*1e6) title 'TotOrgDecay' w l lw 1, \"
+   write(File_txtImg,*)"  r1 u ($1/365.0):($5*1e6) title 'TotResp' w l lw 1, \"
+   write(File_txtImg,*)"  r1 u ($1/365.0):($4*1e6) title 'TotAbio' w l lw 1, \"
+   write(File_txtImg,*)"  r1 u ($1/365.0):($2*1e6) title 'TotO2dif' w l lw 1, \"
+   write(File_txtImg,*)"  r1 u ($1/365.0):($7*1e3) title 'dO2/dt' w l lw 1"
+   write(File_txtImg,*)'set terminal emf enhanced "Arial, 25"'
+   write(File_txtImg,*)'set terminal emf enhanced "Arial, 22.4"'
+   write(File_txtImg,*)'set output "biot-flux.emf"'
+   write(File_txtImg,*)'replot'
+   write(File_txtImg,*)'set output'
+   write(File_txtImg,*)'set terminal wxt'
+   Close(File_txtimg)
+   
+   
+   End subroutine Gnuplot_flux
+   
+   !****************************************
+   
+   subroutine Gnuplot_diet()
+   
+   use GlobalVariables
+   implicit none 
+   
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/biot-diet.plt', status = 'unknown')
+   write(File_txtImg,*)'set pm3d map  corners2color max'
+   write(File_txtImg,*)'set size square'
+   write(File_txtImg,*)'set border lw 3'
+   write(File_txtImg,*)'set size ratio 0.24'
+   write(File_txtImg,*)"set tics font 'arial, 35'"
+   write(File_txtImg,*)'set palette rgbformula 22,13,-31'
+   write(File_txtImg,*)"r1='"//trim(adjustl(today))//'/Diet.OUT'//"'"
+   write(File_txtImg,*)'unset colorbox'
+   write(File_txtImg,*)'set key outside horizontal bottom'
+   write(File_txtImg,*)'# Time*Timescale,i,MovementRate, IngestRate, EgestRate, RespRate_ave,Org(i)%Gut%Content' &
+                        //',Org(i)%Move%Rate,Org(i)%Ingest%Rate,Org(i)%Gut%Capacity'
+   write(File_txtImg,*)"plot r1 u ($1/365.0):($3/$8) title 'Rel. Move Rate' w l lw 1, \"
+   write(File_txtImg,*)"  r1 u ($1/365.0):($4/$9) title 'Rel. Ingest Rate' w l lw 1, \"
+   write(File_txtImg,*)"  r1 u ($1/365.0):($5/$9) title 'Rel. Egest Rate' w l lw 0.8 dt (10,5), \"
+   write(File_txtImg,*)"  r1 u ($1/365.0):($6) title 'Resp. Rate' w l lw 1, \"
+   write(File_txtImg,*)"  r1 u ($1/365.0):($7/$10) title 'Fullness' w l lw 1"
+   write(File_txtImg,*)'set terminal emf enhanced "Arial, 25"'
+   write(File_txtImg,*)'set terminal emf enhanced "Arial, 22.4"'
+   write(File_txtImg,*)'set output "biot-diet.emf"'
+   write(File_txtImg,*)'replot'
+   write(File_txtImg,*)'set output'
+   write(File_txtImg,*)'set terminal wxt'
+   Close(File_txtimg)
+   
+   
+   End subroutine Gnuplot_diet
+   
+   !****************************************
+   
+   subroutine Gnuplot_Db(dimchr)
+   
+   use GlobalVariables
+   implicit none 
+   character*1, intent(in) :: dimchr
+   character*10 :: colchr
+   
+   select case (trim(adjustl(dimchr)))
+     case('x','X')
+       colchr = '8'
+     case('y','Y')
+       colchr = '7'
+     case default
+       colchr = '6'
+   end select 
+   
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/biot-Db'//trim(adjustl(dimchr))//'.plt', status = 'unknown')
+   write(File_txtImg,*)'set border lw 3.5'
+   write(File_txtImg,*)'set size ratio 1.25'
+   write(File_txtImg,*)"set tics font 'arial, 35'"
+   write(File_txtImg,*)'set format x2 "%.1f"'
+   write(File_txtImg,*)'set palette rgbformula 22,13,-31'
+   write(File_txtImg,*)"r1='"//trim(adjustl(today))//'/MeanDisplacement2.OUT'//"'"
+   write(File_txtImg,*)'unset colorbox'
+   write(File_txtImg,*)'set key outside vertical right'
+   write(File_txtImg,*)'set yrange [] reverse'
+   ! write(File_txtImg,*)'set yr[12:0]'
+   ! write(File_txtImg,*)'set xr[-7:1]'
+   ! write(File_txtImg,*)'set xtics 2'
+   write(File_txtImg,*)'n = ',Savetime
+   write(File_txtImg,*)'plot for [i=1:n] r1 u (log10($'//trim(adjustl(colchr))//')):2 every :::(i)::(i) title' &
+     //' sprintf("%g",(i-1)*25) w l  lw 1  lc palette frac (i)/(n*1.)'
+   write(File_txtImg,*)'set terminal emf enhanced "Arial, 25"'
+   write(File_txtImg,*)'set output "biot-Db'//trim(adjustl(dimchr))//'.emf"'
+   write(File_txtImg,*)'replot'
+   write(File_txtImg,*)'set output'
+   write(File_txtImg,*)'set terminal wxt'
+   Close(File_txtimg)
+   
+   
+   End subroutine Gnuplot_Db
+   
    ! ***********************************************************   
    
    subroutine org_midloc(i, startj, endj,  org_mid)
@@ -3414,21 +3655,23 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    minx = minval(org_loc(startj:endj,i)%x)
    miny = minval(org_loc(startj:endj,i)%y)
    
+   ! print*,maxx,maxy,minx,miny
+   
    org_mid%y = int((maxy + miny )/2.0)
    
    if ((maxx - minx <= 2*org(i)%width)) then 
    org_mid%x = int((maxx + minx)/2.0)
    else if (maxx - minx > 2*org(i)%width) then 
-      do j = 1, endj -startj + 1
-	     if (org_loc(j,i)%x >=n_col/2) then 
-		    org_copy(j) = org_loc(startj + j-1,i)%x - n_col
-	     else 
-		    org_copy(j) = org_loc(startj+j-1,i)%x
-		 end if 
-	  end do
-   maxx = maxval(org_copy(1:endj-startj+1))
-   minx = minval(org_copy(1:endj-startj+1))
-   org_mid%x = int((maxx + minx )/2.0)
+      ! do j = 1, endj -startj + 1
+	     ! if (org_loc(j,i)%x >=n_col/2) then 
+		    ! org_copy(j) = org_loc(startj + j-1,i)%x - n_col
+	     ! else 
+		    ! org_copy(j) = org_loc(startj+j-1,i)%x
+		 ! end if 
+	  ! end do
+   ! maxx = maxval(org_copy(1:endj-startj+1))
+   ! minx = minval(org_copy(1:endj-startj+1))
+   org_mid%x = int((maxx + minx + n_col )/2.0)
    else 
    print *, 'error in org_midloc'
    end if 
@@ -3462,7 +3705,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    real :: Lab_real_New
    real :: Sum_Dy, dy, Sum_dx, dx, SUM_RMS, RMS, DEV_X, DEV_Y
    real :: Sum_Dy2(N_Row), Sum_dx2(N_Row), SUM_RMS2(N_Row), RMS2(N_Row), DEV_X2(N_Row), DEV_Y2(N_Row), P_count2(N_Row)
-
+   
+   real :: Sum_Dy3(N_Row), Sum_dx3(N_Row),DEV_X3(N_Row), DEV_Y3(N_Row)     !! YK added
+   
    Real :: Depth_vector(N_Row), Activity_vector(N_Row), weight_vector(N_Row)
    Real :: AMACH
    Real :: Db_lability, Lability_vector(N_Row, N_LabilityClasses)
@@ -3482,7 +3727,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    double precision, allocatable :: amx(:,:), amx2(:,:), ymx(:), ymx2(:), cmx(:)
    
-   real :: Db_list(n_row),  Activity_vector2(N_Row), Db_list2(n_row)
+   real :: Db_list(n_row),  Activity_vector2(N_Row), Db_list2(n_row), Dbx_list(n_row), Dby_list(n_row)
    
    logical :: matrixCheck, int_activity_1
    
@@ -3544,6 +3789,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
        SUM_RMS2(y) = 0.
        P_COUNT2(y) = 0
        
+       sum_DY3(y) = 0.
+       sum_DX3(y) = 0.
+       
        lab_rowsum_real = 0.
 
        DO X = 1, N_Col
@@ -3581,6 +3829,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
            Sum_Dy2(y) = Sum_dy2(y) +  Real(dy)
            Sum_Dx2(y) = Sum_dx2(y) +  Real(dx)
            sUM_rms2(y) = sUM_RMS2(y) + Real(dY*dY + Dx*Dx)  ! square of the distance displaced
+           
+           sum_dx3(y) = sum_dx3(y) + real(dx*dx)
+           sum_dy3(y) = sum_dy3(y) + real(dy*dy)
            
            P_count2(y) = P_count2(y) + part_rowsum
 
@@ -3725,15 +3976,21 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
        RMS2(y) = PixelSize *PixelSize * ( SUM_RMS2(y) / rEAL(P_COUNT2(y)) )   ! CALC OF rms .. == SQRT(MEAN(SQUARED DEVIATIONS))
        DEV_Y2(y) = PixelSize * SUM_DY2(y) / rEAL(P_COUNT2(y))
        DEV_X2(y) = PixelSize * SUM_Dx2(y) / rEAL(P_COUNT2(y))
+       DEV_Y3(y) = PixelSize *PixelSize * SUM_DY3(y) / rEAL(P_COUNT2(y))
+       DEV_X3(y) = PixelSize * PixelSize *SUM_Dx3(y) / rEAL(P_COUNT2(y))
        
        if (time.ne.0) then 
        Db_list(y) = RMS2(y)*365./time/timescale/4.
+       Dby_list(y) = Dev_Y3(y)*365./time/timescale/4.
+       Dbx_list(y) = Dev_X3(y)*365./time/timescale/4.
        else 
        Db_list(y) = 0
+       Dby_list(y) = 0
+       Dbx_list(y) = 0
        end if
 	   
-       write(File_Displace2,*) Timevalue, Depth_vector(y), DEV_Y2(y), DEV_X2(y), RMS2(y),   &
-           Db_list(y), P_COUNT2(y)
+       write(File_Displace2,*) Timevalue, Depth_vector(y), DEV_Y3(y), DEV_X3(y), RMS2(y),   &
+           Db_list(y), Dby_list(y), Dbx_list(y), P_COUNT2(y)
        
        if (y.eq. n_row) write(file_displace2,*) ""
        
@@ -4010,8 +4267,8 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
          End Do
          End Do
 
-       call writegif("C:/Users/YK/Desktop/biot-res/lab/lability"          &
-                //trim(adjustl(today))//trim(adjustl(numtemp))//".gif", image_data, palette)
+       call writegif(trim(adjustl(today))//"/data/lability-"          &
+                //trim(adjustl(numtemp))//".gif", image_data, palette)
 
    End if
 
@@ -4023,8 +4280,8 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
          End Do
          End Do
  
-       call writegif("C:/Users/YK/Desktop/biot-res/por/porosity"           &
-                 //trim(adjustl(today))//trim(adjustl(numtemp))//".gif", image_data, palette)
+       call writegif(trim(adjustl(today))//"/data/porosity-"           &
+                 //trim(adjustl(numtemp))//".gif", image_data, palette)
 
     End if
 
@@ -4035,8 +4292,8 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
          End Do
          End Do
 
-       call writegif("C:/Users/YK/Desktop/biot-res/act/activity"//            &
-                   trim(adjustl(today))//trim(adjustl(numtemp))//".gif", image_data, palette)
+       call writegif(trim(adjustl(today))//"/data/activity-"//            &
+                   trim(adjustl(numtemp))//".gif", image_data, palette)
 
      End if
     End if
@@ -4841,3 +5098,66 @@ do k=1, n
 end do
 
 end subroutine dot
+
+
+! ====================================================
+subroutine heapsortR(n,array,turn)
+!!!  from http://slpr.sakura.ne.jp/qp/sortf90/
+  implicit none
+  integer,intent(in)::n
+  integer,intent(out)::turn(1:n)
+  real,intent(inout)::array(1:n)
+ 
+  integer::i,k,j,l,m
+  real::t
+ 
+  if(n.le.0)then
+     write(6,*)"Error, at heapsort"; stop
+  endif
+  if(n.eq.1)return
+
+  do i=1,N
+     turn(i)=i
+  enddo
+
+  l=n/2+1
+  k=n
+  do while(k.ne.1)
+     if(l.gt.1)then
+        l=l-1
+        t=array(l)
+        m=turn(l)
+     else
+        t=array(k)
+        m=turn(k)
+        array(k)=array(1)
+        turn(k)=turn(1)
+        k=k-1
+        if(k.eq.1) then
+           array(1)=t
+           turn(1)=m
+           exit
+        endif
+     endif
+     i=l
+     j=l+l
+     do while(j.le.k)
+        if(j.lt.k)then
+           if(array(j).lt.array(j+1))j=j+1
+        endif
+        if (t.lt.array(j))then
+           array(i)=array(j)
+           turn(i)=turn(j)
+           i=j
+           j=j+j
+        else
+           j=k+1
+        endif
+     enddo
+     array(i)=t
+     turn(i)=m
+  enddo
+
+  return
+end subroutine heapsortR
+! =====================================================

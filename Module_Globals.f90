@@ -28,6 +28,7 @@
    logical, save :: errChk    !!!  YK
    logical, save :: I_shape    !!!  YK
    logical, save :: flow_ON    !!!  YK
+   logical, save :: Detail_Log    !!!  YK
 
    Integer, Save :: N_Ind, N_Row, N_Col, N_Cell, Buffer_Zone, N_RowWater, N_RowSed, N_LabilityClasses
    Integer, Save :: Total_N_Particles, Total_N_Particles0, ParticleTolerance
@@ -48,7 +49,7 @@
 
    Character*3   :: Porosity_Type
    Character*14  :: CurrentTime
-   Character*255  :: Today
+   Character*255  :: WorkDir, Workname, Today
 
    Integer, Parameter :: w=0, p=-1   ! values of water (w) and particles (p) used in Particle%Class (see below)
    Real, Parameter :: pi = 3.14159
@@ -132,8 +133,9 @@
    Integer, Allocatable, Save              :: Particle_ID_free(:), MatrixOccupancy(:), Time_output(:), Time_output2(:)
    Integer, Allocatable, Save              :: IngestionHistory(:,:), MovementHistory(:,:)
    Integer, Allocatable, Save              :: RespHistory(:,:)   !! YK 
+   Integer, Allocatable, Save              :: EgestHistory(:,:)   !! YK 
    Integer, Allocatable, Save              :: Dir_rec(:,:)   !! YK 
-   real, Allocatable, Save              :: Ub(:,:),Vb(:,:)   !! YK 
+   real, Allocatable, Save                 :: Ub(:,:),Vb(:,:)   !! YK 
    real, allocatable, save                 :: Ug(:,:), Vg(:,:), Pg(:,:), Dg(:,:)  !!  YK matrix recording velocity info
    real, allocatable, save                 :: Uo(:,:), Vo(:,:)  !!  YK matrix recording velocity info for oxygen concentration calc
    real, allocatable, save                 :: edif(:,:) 
@@ -154,6 +156,8 @@
    integer, parameter :: File_temp = 950, File_flux = 230, File_Log = 340, file_flux_txt = 220
    
    Integer, Parameter :: poly_fit = 100
+   
+   Integer, Parameter :: File_Diet = 19, File_Core = 29, File_Core_M = 39, File_Core_L = 49
    
    real, parameter :: po_particle = 0.9
    real, parameter :: iox = 220.e-6  ! mol/L
