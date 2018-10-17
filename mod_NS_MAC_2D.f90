@@ -37,7 +37,7 @@ integer, allocatable :: CDNt(:,:) ! cell type of neighbors of a P-cell
 logical :: flow_dir_x 
 logical :: choice_done
 
-real  :: rdm(3)
+real  :: rdm(5)
 real  :: Ptop = 1d1  ! in g/cm/s/s (= 100 atm, with Pa = 10 g/cm/s/s and 1 atm = 1e5 Pa)
 real  :: Pbot = 1d2
 real  :: VelC          ! in cm/s (= 10 cm/day)
@@ -138,12 +138,14 @@ if (.not.simple_test) then
 	end do 
 end if 
 
+call random_seed
+call random_number(rdm)
 if (simple_test) then 
 	B = 0
 	if (p_create) then 
 		do pp = 1, int((1.0d0-poro)*nx*ny)
-			xx = int(1+rand()*nx)
-			yy = int(1+rand()*ny)
+			xx = int(1+rdm(1)*nx)
+			yy = int(1+rdm(2)*ny)
 			if (B(xx,yy) ==0) B(xx,yy) = 1
 		end do
 	end if 
@@ -518,18 +520,18 @@ end do
 ! choose randomly a location for constant flow boundary 
 if (random_choice) then 
 	choice_done = .false.
-	! call random_seed
+	call random_seed
 	do while (.not.choice_done)
-		! call random_number(rdm)
-		xx = 3 + int(rand()*(nx-3))
-		yy = 3 + int(rand()*(ny-3))
+		call random_number(rdm)
+		xx = 3 + int(rdm(1)*(nx-3))
+		yy = 3 + int(rdm(2)*(ny-3))
 		xp = xx + 1
 		xg = xx - 1
 		yp = yy + 1
 		yg = yy - 1
 		if (.not. simple_test) then 
 			if ((B2(xx,yy) == 0).and.(yy > int(3*ny/10))) then 
-				dirc = 1 + int(rand()*4)
+				dirc = 1 + int(rdm(3)*4)
 				if ((dirc == 1).and.(B2(xp,yy) == 0)) Tp(xx,yy) = 500; choice_done = .true.  ! rightward flow
 				if ((dirc == 2).and.(B2(xg,yy) == 0)) Tp(xx,yy) = 600; choice_done = .true.  ! leftward flow
 				if ((dirc == 3).and.(B2(xx,yp) == 0)) Tp(xx,yy) = 700; choice_done = .true.  ! downward flow
@@ -537,7 +539,7 @@ if (random_choice) then
 			end if 
 		else if (simple_test) then 
 			if ((B2(xx,yy) == 0)) then 
-				dirc = 1 + int(rand()*4)
+				dirc = 1 + int(rdm(4)*4)
 				if ((dirc == 1).and.(B2(xp,yy) == 0)) Tp(xx,yy) = 500; choice_done = .true.  ! rightward flow
 				if ((dirc == 2).and.(B2(xg,yy) == 0)) Tp(xx,yy) = 600; choice_done = .true.  ! leftward flow
 				if ((dirc == 3).and.(B2(xx,yp) == 0)) Tp(xx,yy) = 700; choice_done = .true.  ! downward flow

@@ -1,4 +1,4 @@
-
+ 
    ! ***********************************************************************
    !         Program name  LABS  (Lattice-Automaton Bioturbation Simulator)
    !
@@ -24,7 +24,7 @@
    implicit none
    Logical               :: TimeToOutput
    Integer               :: i, DepthToScan, TimeNew, ParticlesToSediment
-   Character*14          :: CurrentTimeString
+   Character*15          :: CurrentTimeString
    Real                  :: Area_Period
    Type(CoOrdinates)     :: Point
    integer               :: xx, yy, j
@@ -77,33 +77,42 @@
                                   '/Core_M.txt', status = 'unknown')
        OPEN(unit = File_Core_L, file = trim(adjustl(Today))//                           &
                                   '/Core_L.txt', status = 'unknown')
+       OPEN(unit = File_Core_A, file = trim(adjustl(Today))//                           &
+                                  '/Core_A.txt', status = 'unknown')
 
    ! Begin main program loop
    
    oxygen_ON = .true.
-   ! oxygen_ON = .false.
+   oxygen_ON = .false.
    
    oxFB_ON = .true.
-   ! oxFB_ON = .false.
+   oxFB_ON = .false.
    
    Resp_ON = .true.
    ! resp_ON = .false.
    
    errCHk = .true.
-   ! errChk = .false.
+   errChk = .false.
    
    I_shape = .true.
-   I_shape = .false.
+   ! I_shape = .false.
    
    flow_ON = .true.
-   ! flow_ON = .false.
+   flow_ON = .false.
 
    only_sed = .True.   
    only_sed = .FALSE.
    
    Detail_Log = .True.
    Detail_Log = .False.
+
+   Incl_ASH = .True. 
+   ! Incl_ASH = .False. 
    
+   O2ratelaw = 'linear'
+   ! O2ratelaw = 'monod'
+   ! O2ratelaw = 'zero'
+	
    Org_ID_ishape = 1
 
 
@@ -126,6 +135,8 @@
              Pr_Activity_year = 0.5 * (1. + cos(pi + 2.*pi*(Real(Time)/Real(Year)) ) )
              Pr_Activity_day = 0.5 * (1. + cos(pi + 2.*pi*(Real(Time)/Real(Day)) ) )
              CurrentTime = CurrentTimeString()
+			 
+			 print*,currenttime
 			 
          Do i = 1, N_Ind           ! for each organism
 
@@ -185,9 +196,39 @@
                  Call WaterColumn_scan(DepthToScan)
 
              ! sneek an output of the current time to show how far the sim has progressed
-                 write(*,*) CurrentTime, Time
+                 write(*,*) "sedimentation!!",CurrentTime, Time,ParticlesToSediment
                  
                  
+         
+         !  check for error 
+         if (errChk) then 
+         call Make_matrix_chk()
+         if (errDetect) then; print *,time, "err after sed"; write(file_log,*)time, "err after sed"; end if 
+         call Matrix_err_chk()
+         if (errDetect) then; print *,time, "err after sed"; write(file_log,*)time, "err after sed"; end if 
+         end if 
+                 
+
+           End if
+
+       ! Ashing  ew particles and sediment them down
+           If (Incl_ASH) then
+		     Time_Ash = 49.  ! days
+			 Ash_ON = .false.
+			 if (Time==int(Time_ASH/TimeScale)) then 
+			 Ash_ON = .true.
+			 Ash_porosity=porosity0
+		   ! determine number of particles to be input (the fraction of the area under the sinusoid) and do it
+			   Ash_thickness = 1.  ! cm
+			   ParticlesToSediment = Ash_thickness/pixelsize * n_col*(1d0-ash_porosity)
+			   Call Particle_sediment(ParticlesToSediment)
+			   Call LocateOrganisms_scan()  ! subroutine that collects info of the location of organisms ..
+			   write(*,*) "Ash!!!!",CurrentTime, Time, ParticlesToSediment
+             End if
+
+             ! Scan the water column and sediment down any free particles
+                 DepthToScan = N_RowWater
+                 Call WaterColumn_scan(DepthToScan)
          
          !  check for error 
          if (errChk) then 
@@ -389,6 +430,7 @@
        Deallocate (Org, Matrix, Particle, Org_Loc, Guts, MovementHistory, IngestionHistory, RespHistory, Dir_rec)
        
        deallocate (O2)
+       deallocate (particle2)
 	   
 	   deallocate (flow_loc, Ub, Vb)
 	   deallocate (Ug,Vg, Pg, Dg) 
@@ -412,6 +454,7 @@
        Close(File_Core)
        Close(File_Core_M)
        Close(File_Core_L)
+       Close(File_Core_A)
 
    End Program
 
@@ -525,6 +568,13 @@
    ! the ** critical scaling parameter for time **
    ! this gives the length of real time (days) for each unit of simulation time (RealTime/SimulTime)
        TimeScale = PixelSize / MaxOrgSpeed       !  day
+       
+       
+         print '("$$$$$$$$$$$ Time and space configuration $$$$$$$$$$$$$")'
+         print'("PixelSize (cm/pixel): ",f6.4)',PixelSize
+         print'("TimeScale (day/step): ",f6.4)',TimeScale
+         print '("\\\\\\\\\ End of config. \\\\\\\\\\\\\")'
+         print*,''
 
    ! define some useful time constants
 
@@ -592,6 +642,7 @@
 
      ALLOCATE (Matrix(N_Row, N_Col), MatrixOccupancy(N_Row))
      Allocate (Particle(N_Cell))
+     Allocate (Particle2(N_Cell))
      Allocate (Org(N_Ind))
      Allocate (Org_Loc(MaxOrgSize, N_Ind))
      Allocate (IngestionHistory(N_Ind, Day), MovementHistory(N_Ind, Day))
@@ -629,7 +680,6 @@
          Org(i)%Orientation            = 0
          Org(i)%SensoryRange           = Org(i)%Width      ! this will eventually be made a user input
          Org(i)%FaecesWidth            = Ceiling(Real(Org(i)%Width) / 4.)
-         print *,Org(i)%FaecesWidth
          Org(i)%Is%Reversing           = .false.
          Org(i)%Is%WrappingAround      = .false.
          Org(i)%Is%OnTheEdge           = .false.
@@ -660,8 +710,21 @@
          
          respHistory(i,:)     = 0
          EgestHistory(i,:)     = 0
+         
+         print '("=========== properties of organism #",i2," ================")',n
+         print'("Density (g/cm3): ",f6.2)',Org(i)%Density
+         print'("Length (pixels): ",i3.2)',Org(i)%Length
+         print'("Width (pixels): ",i3.2)',Org(i)%Width
+         print'("HeadSize (pixels): ",i3.2)',Org(i)%HeadSize
+         print'("BodySize (pixels): ",i3.2)',Org(i)%BodySize
+         print'("MoveRate (pixels/day): ",f6.2)',Org(i)%Move%Rate/TimeScale
+         print'("IngestRate (particles/day): ",f6.2)',Org(i)%Ingest%Rate/TimeScale
+         print '("~~~~~~~~~~~ End of properties of organism #",i2," ~~~~~~~~~~~~")',n
+         print*,''
 
        End do
+       
+       ! stop
 
        CLOSE(File_Organisms)
 
@@ -680,7 +743,7 @@
        
        do j = 1, N_labilityClasses
          lability_decayConstant(j) = 1e-1   ! /yr for labile OM cf., Canfield, 1994
-		 ! lability_decayConstant(j) = lability_decayConstant(j)*1e1   ! when high rate is considered 
+		 lability_decayConstant(j) = lability_decayConstant(j)*1e1   ! when high rate is considered 
          lability_proportion(j) = j 
        end do
 
@@ -730,6 +793,8 @@
    real :: ave_OM, ptcl_num
    
    real :: EgestRate 
+   
+   ! logical :: IsFloating
    
    ! shift elements right
        MovementHistory(i,:) = EOShift (MovementHistory(i,:), -1)
@@ -806,8 +871,12 @@
 				 end if 
                End if
                
+               
                If (EgestRate .ge. IngestRate) Org(i)%Can%Egest = .true.    !! this make sure a low fullness and efficient ingestion/egestion cycles
                ! If (EgestRate .lt. Org(i)%Ingest%Rate) Org(i)%Can%Egest = .true.    !! this make sure a low fullness and efficient ingestion/egestion cycles
+               
+               If (I_shape .and. i == Org_ID_ishape) Org(i)%Can%Egest = .false.   ! let worm floating around
+               
                
              End if
              End if
@@ -1433,7 +1502,7 @@
    If (Org(i)%Can%Move) then
    
      If (Allocated(tail)) Deallocate(tail)
-     Allocate (Tail(Org(i)%Width))
+     Allocate (Tail(Org(i)%Width)) 
 
      MovementHistory(i,1) = 1
      Org(i)%Move%Bearing_Distance = Org(i)%Move%Bearing_Distance + 1
@@ -1446,7 +1515,14 @@
          END do
        ! move the head
          DO j =1, Org(i)%HeadSize                                    ! move the head
+           if (Image(j)%X+dX> n_col) then 
+           Org_Loc(j,i) = Coordinates(Image(j)%Y+dY, Image(j)%X+dX-n_col)
+           else if (Image(j)%X+dX < 1) then
+           Org_Loc(j,i) = Coordinates(Image(j)%Y+dY, Image(j)%X+dX+N_col)
+           else 
            Org_Loc(j,i) = Coordinates(Image(j)%Y+dY, Image(j)%X+dX)
+           endif
+           ! print *, Org_Loc(j,i)%Y, Org_Loc(j,i)%X
            Matrix(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = CellContent(j,i)
            If (oxygen_ON) O2(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = O2(image(j)%Y, image(j)%X)
          END Do
@@ -1859,6 +1935,7 @@
              If (IsWater(Org_loc(k,i))) then
                  MAtrix(Org_loc(k,i)%Y, Org_loc(k,i)%X) = Guts(j,i)
 				 particle(Guts(j,i)%value)%loc = Org_loc(k,i)   !! YK 
+				 particle2(Guts(j,i)%value)%loc = Org_loc(k,i)   !! YK 
                  if (oxygen_ON) O2(Org_loc(k,i)%Y, Org_loc(k,i)%X)%oxygen = 0.0
                  Guts(j,i) = CellContent(w,w)
                  Exit
@@ -2010,6 +2087,12 @@
        Particle%OM%OMact = 0
        Particle%OM%OMact_0 = 0
        Particle%OM%OM_Time0 = 0
+	   
+       Particle2%Ash%Ashact = 0
+       Particle2%Ash%Ashact_0 = 0
+       Particle2%Ash%Ash_Time0 = 0
+	   
+	   Particle2%Loc = Coordinates(0,0)
 
    ! fill the matrix :: based upon user input porosity, activity, lability, etc,  gradients/functional forms
        Particle_Id = 0
@@ -2029,6 +2112,12 @@
                
                Particle(Particle_ID)%OM%OMact = real(Lab_real(Y,X))
                Particle(Particle_ID)%OM%OMact_0 = Particle(Particle_ID)%OM%OMact
+			   
+               Particle2(Particle_ID)%Ash%Ashact = 0.
+               Particle2(Particle_ID)%Ash%Ashact_0 = Particle2(Particle_ID)%Ash%Ashact
+			   
+               Particle2(Particle_ID)%Loc = Particle(Particle_ID)%Loc
+               Particle2(Particle_ID)%Loc_Init = Particle(Particle_ID)%Loc_init
                !!!  YK  treat lability as continuous value, not discrete ones
                
              END IF
@@ -2264,6 +2353,7 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
        Particle(Particle_ID)%Loc             = Coordinates(Point%Y, Point%X)
        Particle(Particle_ID)%Loc_Init        = Coordinates(Point%Y, Point%X)
        Particle(Particle_ID)%Lability        = int(Lab_real(Point%Y, Point%X))
+	   if (ASH_ON) Particle(Particle_ID)%Lability = 0
        Particle(Particle_ID)%Lability_Time0  = Time
        Particle(Particle_ID)%Pb%Activity     = 1
        Particle(Particle_ID)%Pb%Activity0    = 1
@@ -2271,9 +2361,18 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
        
        
        Particle(Particle_ID)%OM%OMact        = real(Lab_real(Point%Y, Point%X))
+       If (ASH_ON) Particle(Particle_ID)%OM%OMact = 0.
        Particle(Particle_ID)%OM%OMact_0      = Particle(Particle_ID)%OM%OMact
        Particle(Particle_ID)%OM%OM_Time0     = Time
        
+       Particle2(Particle_ID)%Ash%Ashact        = 0.
+       If (ASH_ON) Particle2(Particle_ID)%Ash%Ashact = 1.
+       Particle2(Particle_ID)%Ash%Ashact_0      = Particle2(Particle_ID)%Ash%Ashact
+       Particle2(Particle_ID)%Ash%Ash_Time0     = Time
+
+       Particle2(Particle_ID)%Loc             = Particle(Particle_ID)%Loc  
+       Particle2(Particle_ID)%Loc_Init        = Particle(Particle_ID)%Loc_INIT  
+	   
        O2(point%Y, point%X)%oxygen           = 0.0 
        O2(point%Y, point%X)%oxygen_use       = 0.0 
        O2(point%Y, point%X)%oxygen_pre       = 0.0 
@@ -2316,6 +2415,13 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
        Particle(Particle_ID)%OM%OMact        = 0
        Particle(Particle_ID)%OM%OMact_0      = 0
        Particle(Particle_ID)%OM%OM_Time0     = 0
+       
+       Particle2(Particle_ID)%Ash%Ashact        = 0
+       Particle2(Particle_ID)%Ash%Ashact_0      = 0
+       Particle2(Particle_ID)%Ash%Ash_Time0     = 0
+	   
+       Particle2(Particle_ID)%Loc             = Particle(Particle_ID)%Loc
+       Particle2(Particle_ID)%Loc_Init        = Particle(Particle_ID)%Loc_init
    
          if (errChk) then 
          call Make_matrix_chk()
@@ -2385,9 +2491,11 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
              Matrix(PointBelow%Y,PointBelow%X) = Matrix(Point%Y,Point%X)
              if (oxygen_ON) O2(PointBelow%Y,PointBelow%X) = O2(Point%Y,Point%X)
              Particle(Matrix(PointBelow%Y,PointBelow%X)%Value)%loc = PointBelow
+             Particle2(Matrix(PointBelow%Y,PointBelow%X)%Value)%loc = PointBelow
              
  
 Particle(Matrix(PointBelow%Y,PointBelow%X)%Value)%loc_INIT = PointBelow
+Particle2(Matrix(PointBelow%Y,PointBelow%X)%Value)%loc_INIT = PointBelow
              Matrix(Point%Y,Point%X) = CellContent(w,w)
              if (oxygen_ON) O2(Point%Y,Point%X) = O2_buff
              Point = PointBelow
@@ -2400,8 +2508,10 @@ Particle(Matrix(PointBelow%Y,PointBelow%X)%Value)%loc_INIT = PointBelow
                Matrix(PointBelow%Y,PointBelow%X) = Matrix(Point%Y,Point%X)
                if (oxygen_ON) O2(PointBelow%Y,PointBelow%X) = O2(Point%Y,Point%X)
                Particle(Matrix(PointBelow%Y,PointBelow%X)%Value)%loc = PointBelow
+               Particle2(Matrix(PointBelow%Y,PointBelow%X)%Value)%loc = PointBelow
  
 Particle(Matrix(PointBELOW%Y,PointBeLOW%X)%Value)%loc_Init = PointBelow
+Particle2(Matrix(PointBELOW%Y,PointBeLOW%X)%Value)%loc_Init = PointBelow
                  ! THIS IS THE FINAL SETTLING POINT
                Matrix(Point%Y,Point%X) = CellContent(w,w)
                if (oxygen_ON) O2(Point%Y,Point%X) = O2_buff
@@ -2426,8 +2536,10 @@ Particle(Matrix(PointBELOW%Y,PointBeLOW%X)%Value)%loc_Init = PointBelow
              Matrix(Point%Y,Point%X) = CellContent(w,w)
              if (oxygen_ON) O2(Point%Y,Point%X) = O2_buff
              Particle(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc = PointBeside
+             Particle2(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc = PointBeside
  
 Particle(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
+Particle2(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
                ! THIS IS THE FINAL SETTLING POINT
            End if
          End if
@@ -2484,7 +2596,7 @@ Particle(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
    integer :: xx, yy
    integer :: i
    
-   real :: m_OM,m_poro, tmp_lab(N_Col)
+   real :: m_OM,m_poro, m_ash,tmp_lab(N_Col),tmp_ash(N_Col)
    integer :: tmp_img(N_Col)
 
    ! check bottom boundary to see if the shift is possible
@@ -2496,15 +2608,19 @@ Particle(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
        
        m_OM = 0.
        m_poro = 0.
+	   m_ash = 0.
        tmp_img = 0
        tmp_lab = 0.
+       tmp_ash = 0.
 
    ! As there are no boundary problems .. do the shift
        Do X = 1, N_Col
          if (IsParticle(CoOrdinates(Y,X))) then
            tmp_img(X) = 1
            tmp_lab(X) = Particle(Matrix(Y,X)%Value)%OM%OMact + 1.
+           tmp_ash(X) = Particle2(Matrix(Y,X)%Value)%Ash%Ashact + 1.
            m_OM = m_OM + Particle(Matrix(Y,X)%Value)%OM%OMact 
+           m_ash = m_ash + Particle2(Matrix(Y,X)%Value)%Ash%Ashact 
            m_poro = m_poro + 1.
            Call Particle_remove(CoOrdinates(Y,X))
          endif
@@ -2512,10 +2628,12 @@ Particle(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
        
        m_OM = m_OM/N_col
        m_poro = m_poro/N_col
+       m_ash = m_ash/N_col
        
        write(File_Core_M,*) (tmp_img(x),x=1,N_col)
        write(File_Core_L,*) (tmp_lab(x),x=1,N_col)
-       write(File_Core,*) Time*Timescale, m_poro, m_OM
+       write(File_Core_A,*) (tmp_ash(x),x=1,N_col)
+       write(File_Core,*) Time*Timescale, m_poro, m_OM, m_ash
 
        Do X = 1, N_Col
          Do Y = N_Row - 1, 1, -1
@@ -2528,6 +2646,8 @@ Particle(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
                  Particle_ID = Matrix(Y,X)%Value
                  Particle(Particle_ID)%loc = Coordinates(Y_new, X)
                  Particle(Particle_ID)%loc_Init%Y = Particle(Particle_ID)%loc_Init%Y + 1 ! adjust initial position for shifting down of matrix
+				 Particle2(Particle_ID)%loc=particle(particle_id)%loc
+				 Particle2(Particle_ID)%loc_init=particle(particle_id)%loc_init
                  Matrix(Y_new,X) = Matrix(Y,X)
                  if (oxygen_ON) O2(Y_new, X) = O2(Y, X)
                  DummyVariable = Lab_real_New(Particle_ID)
@@ -2819,6 +2939,10 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    do o = 1, org(i)%width
      if (blcimg(o)%class/=p) cycle
+     if (blcimg(o)%value >= N_col*N_row) then 
+        print *,'error during particle push',blcimg(o)%class,blcimg(o)%value
+        write(File_log,*) 'error during particle push',blcimg(o)%class,blcimg(o)%value
+     endif
      if (particle(blcimg(o)%value)%loc%x /= blcimg_loc(o)%x) then 
 		if (particle(blcimg(o)%value)%loc%x  < blcimg_loc(o)%x) then 
 		   Ub(1,i) = Ub(1,i) + 2.5
@@ -2866,12 +2990,14 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
        Buffer = Matrix(Y,X)
        Matrix(Y,X) = ToMove
        Particle(Matrix(Y,X)%Value)%Loc = Coordinates(Y,X)   ! YK assign loc of particle id in tomove to x,y 
+       Particle2(Matrix(Y,X)%Value)%Loc = Coordinates(Y,X)   ! YK assign loc of particle id in tomove to x,y 
        ToMove = Buffer        !!  YK   tomove is replaced by Matrix(Y,X)
        Finished = .false.
      Case (w)
        Buffer = Matrix(Y,X)  !  YK added  buffer is now water 
        Matrix(Y,X) = ToMove   !  YK matrix(Y,X) is now particle(ToMove)
        Particle(Matrix(Y,X)%Value)%Loc = Coordinates(Y,X)      !!  particle location is moved to Y,X
+       Particle2(Matrix(Y,X)%Value)%Loc = Coordinates(Y,X)      !!  particle location is moved to Y,X
        ToMove = Buffer    !  YK added          ToMove is now water   
        Finished = .true.
      Case Default
@@ -3025,6 +3151,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
                ! IF (Particle(Guts(j,i)%Value)%OM%OMact .gt. 0) then
                Matrix(Tail(loc)%Y, Tail(loc)%X) = Guts(j,i)  !! fill the position of water in tail with a particle 
                Particle(Guts(j,i)%Value)%loc = Tail(loc)   !! location of particle is set at tail position 
+               Particle2(Guts(j,i)%Value)%loc = Tail(loc)   !! location of particle is set at tail position 
                if (oxygen_ON) then 
                  ox_buf = O2(Tail(loc)%Y,Tail(loc)%X)%oxygen 
                  O2(Tail(loc)%Y,Tail(loc)%X)%oxygen = 0.0  !! because now tail is particle, oxygen conc. should be zero
@@ -3238,6 +3365,22 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
      write(File_txtImg, *) (txtimg_real(x), x = 1, n_col)
      END Do
    Close(File_txtimg)
+   
+   
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/ash-'          &
+                        //trim(adjustl(numtemp))//'.txt', status = 'unknown')
+     DO Y = 1, N_row
+     txtimg_real = 0 
+     DO X = 1, N_col
+       If (IsParticle(CoOrdinates(Y,X))) then
+         Particle_ID = Matrix(Y,X)%Value
+         Lab_real = particle2(particle_ID)%Ash%Ashact
+         txtimg_real(X) = 1 + Lab_real
+       End if
+     END Do
+     write(File_txtImg, *) (txtimg_real(x), x = 1, n_col)
+     END Do
+   Close(File_txtimg)
 
    if (rec_detail) then 
       OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/ptcl_list-'          &
@@ -3308,6 +3451,20 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
       if ((particle(i)%loc%x == 0) .and. (particle(i)%loc%y == 0)) cycle
       if (any(Guts(:,:)%value == i)) cycle
       matrix_chk(particle(i)%loc%y, particle(i)%loc%x) = cellcontent(i,p)
+	  if (particle(i)%loc%x /= particle2(i)%loc%x .or.particle(i)%loc%y /= particle2(i)%loc%y &
+	    .or. particle(i)%loc_init%x /= particle2(i)%loc_init%x  &
+		.or. particle(i)%loc_init%y /= particle2(i)%loc_init%y) then 
+	    print*, "error: inconsistency between particle 1 & 2: time,cell#, loc1, loc2,locint1,locint2 ="  &
+		  ,time,i,particle(i)%loc,particle(i)%loc%x,particle(i)%loc,particle(i)%loc%y,  &
+		  particle2(i)%loc,particle(i)%loc%x,particle2(i)%loc,particle(i)%loc%y,  &
+		  particle(i)%loc,particle(i)%loc_init%x,particle(i)%loc,particle(i)%loc_init%y,  &
+		  particle2(i)%loc,particle(i)%loc_init%x,particle2(i)%loc,particle(i)%loc_init%y 
+	    write(file_log,*) "error: inconsistency between particle 1 & 2: time,cell#, loc1, loc2,locint1,locint2 ="  &
+		  ,time,i,particle(i)%loc,particle(i)%loc%x,particle(i)%loc,particle(i)%loc%y,  &
+		  particle2(i)%loc,particle(i)%loc%x,particle2(i)%loc,particle(i)%loc%y,  &
+		  particle(i)%loc,particle(i)%loc_init%x,particle(i)%loc,particle(i)%loc_init%y,  &
+		  particle2(i)%loc,particle(i)%loc_init%x,particle2(i)%loc,particle(i)%loc_init%y 
+      endif
    end do 
    
    do i = 1, N_ind
@@ -3419,6 +3576,22 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    implicit none 
    integer :: k, o, i
    real :: resp_rate, lab_max, ox_resp, TimeIncrement
+   real :: fact_law1, fact_law2
+   real :: merge2
+   
+   
+   select case (trim(adjustl(O2ratelaw)))
+     case('linear','LINEAR','Linear')
+        fact_law1 = 0d0
+        fact_law2 = 1d0
+     case('zero','ZERO','Zero')
+        fact_law1 = 0d0
+        fact_law2 = 0d0
+     case('monod','MONOD','Monod')
+        fact_law1 = 1d0
+        fact_law2 = 0d0
+   end select 
+   
    
    lab_max = -1.0
    do k = Org(i)%Gut%Capacity, 1, -1
@@ -3443,9 +3616,12 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    do k = 1, Org(i)%headSize
      O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen_use = &  
        O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen_use + & 
-       resp_rate
+       resp_rate   & 
+       *merge(1d0/mo2,1d0, fact_law1 == 1d0 .and.O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen <= mo2/iox)
      ox_resp = ox_resp + &
-       resp_rate*O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen*TimeScale/365.*iox/OM_uni
+       resp_rate*merge2(1.,O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen   &
+       ,(fact_law1 == 0d0 .and. fact_law2 == 0d0).or.   &
+       (fact_law1==1d0 .and.O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen > mo2/iox))*TimeScale/365.*iox/OM_uni
    end do 
    
    
@@ -3465,23 +3641,40 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    integer :: xx, yy, k, i
    integer :: xg, xp, yp, yg
    real :: tmpV, tmpU
+   real :: fact_law1, fact_law2
+   real :: width_3d
+   real :: merge2
+
+  width_3d = 2.5d0   
+   
+   select case (trim(adjustl(O2ratelaw)))
+     case('linear','LINEAR','Linear')
+        fact_law1 = 0d0
+        fact_law2 = 1d0
+     case('zero','ZERO','Zero')
+        fact_law1 = 0d0
+        fact_law2 = 0d0
+     case('monod','MONOD','Monod')
+        fact_law1 = 1d0
+        fact_law2 = 0d0
+   end select 
    
    TotO2Dif = 0.0
    do xx = 1, n_col
      totO2Dif = totO2Dif +   &
        (O2(y_int,xx)%oxygen - O2(y_int+1,xx)%oxygen)*edif(y_int,xx)*iox*1e-3   &
-          /pixelSize*(0.2*pixelSize)
+          /pixelSize*(width_3d*pixelSize)
    end do
    
-   TotO2Dif = TotO2dif/0.2/(n_col*pixelSize)  !  mol /cm2 / yr flux
+   TotO2Dif = TotO2dif/width_3d/(n_col*pixelSize)  !  mol /cm2 / yr flux
    
    TotO2Adv = 0.0
    do xx = 1, n_col
      TotO2Adv = TotO2Adv +  &
-	   O2(y_int,xx)%oxygen*Vo(xx,y_int)*iox*1e-3*(0.2*pixelSize*pixelsize)
+	   O2(y_int,xx)%oxygen*Vo(xx,y_int)*iox*1e-3*(width_3d*pixelSize*pixelsize)
    end do 
    
-   TotO2Adv = TotO2Adv/0.2/(n_col*pixelSize) 
+   TotO2Adv = TotO2Adv/width_3d/(n_col*pixelSize) 
    
    if (time == 1) then 
      pretotO2 = 0.0
@@ -3496,7 +3689,10 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    do yy = 1, n_row
      do xx = 1, n_col
        TotOrgDecay = TotOrgDecay +   &
-        O2(yy,xx)%Oxygen_use*O2(yy,xx)%oxygen*iox*1e-3*(0.2*pixelSize*pixelsize)
+        O2(yy,xx)%Oxygen_use*merge2(1.,O2(yy,xx)%oxygen   &
+       ,(fact_law1 == 0d0 .and. fact_law2 == 0d0).or.   &
+       (fact_law1==1d0 .and. O2(yy,xx)%oxygen > mo2/iox))  &
+          *iox*1e-3*(width_3d*pixelSize*pixelsize)
       end do 
     end do 
 	
@@ -3506,19 +3702,22 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    do k = 1, Org(i)%headSize
    if (matrix(Org_loc(k,i)%Y,Org_loc(k,i)%X)%class/=i) print *, "error in calc. flux"
    TotResp = TotResp +  &   
-       O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen_use*O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen*iox   &
-         *1e-3*0.2*(pixelSize)*(PixelSize)
+       O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen_use*merge2(1.,O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen   &
+       ,(fact_law1 == 0d0 .and. fact_law2 == 0d0).or.   &
+       (fact_law1==1d0 .and. O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen > mo2/iox))  &
+       *iox   &
+         *1e-3*width_3d*(pixelSize)*(PixelSize)
    end do 
    end do
    end if 
    
    ToTAbio = TotOrgDecay - TotResp
    
-   TotAbio = TotAbio/0.2/(n_col*pixelSize)
+   TotAbio = TotAbio/width_3d/(n_col*pixelSize)
    
-   TotResp = TotResp/0.2/(n_col*pixelSize) ! 
+   TotResp = TotResp/width_3d/(n_col*pixelSize) ! 
    
-   TotOrgDecay = TotOrgDecay /0.2/(n_col*pixelSize) 
+   TotOrgDecay = TotOrgDecay /width_3d/(n_col*pixelSize) 
    
    write(File_flux,*) Time*Timescale, TotO2dif,TotO2Adv, TotAbio, TotResp, TotOrgDecay, (totO2-pretotO2)/timescale*365.0
    write(File_flux_txt,*) Time*Timescale, TotO2dif,TotO2Adv, TotAbio, TotResp, TotOrgDecay, (totO2-pretotO2)/timescale*365.0
@@ -3972,7 +4171,12 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
        WRITE(File_Displace,40) Timevalue, DEV_Y, DEV_X, RMS
    
      do y = 1, n_row
-       if (P_COUNT2(y) == 0) cycle
+       if (P_COUNT2(y) == 0) then 
+       write(File_Displace2,*) Time, Depth_vector(y), 0., 0., 0.,   &
+           0., 0., 0., 0.
+       cycle 
+       endif
+       
        RMS2(y) = PixelSize *PixelSize * ( SUM_RMS2(y) / rEAL(P_COUNT2(y)) )   ! CALC OF rms .. == SQRT(MEAN(SQUARED DEVIATIONS))
        DEV_Y2(y) = PixelSize * SUM_DY2(y) / rEAL(P_COUNT2(y))
        DEV_X2(y) = PixelSize * SUM_Dx2(y) / rEAL(P_COUNT2(y))
@@ -3989,7 +4193,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
        Dbx_list(y) = 0
        end if
 	   
-       write(File_Displace2,*) Timevalue, Depth_vector(y), DEV_Y3(y), DEV_X3(y), RMS2(y),   &
+       write(File_Displace2,*) Time, Depth_vector(y), DEV_Y3(y), DEV_X3(y), RMS2(y),   &
            Db_list(y), Dby_list(y), Dbx_list(y), P_COUNT2(y)
        
        if (y.eq. n_row) write(file_displace2,*) ""
@@ -4660,8 +4864,23 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    real :: Lab_real, Lab_real_New
    Real    :: URand, Pr_Cummulative, TimeIncrement
    real :: lab_decay
+   real :: fact_law1, fact_law2
+   real merge2
    
    logical :: inMatrix, IsParticle
+   
+   select case (trim(adjustl(O2ratelaw)))
+     case('linear','LINEAR','Linear')
+        fact_law1 = 0d0
+        fact_law2 = 1d0
+     case('zero','ZERO','Zero')
+        fact_law1 = 0d0
+        fact_law2 = 0d0
+     case('monod','MONOD','Monod')
+        fact_law1 = 1d0
+        fact_law2 = 0d0
+   end select 
+   
 
      Lab_real = Particle(ID)%OM%OMact
      Lab_real_new = Particle(ID)%OM%OMact
@@ -4684,61 +4903,81 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
       if (particle(ID)%loc%Y == n_row) then 
     O2(particle(ID)%loc%Y,n_col)%Oxygen_use = &
             O2(particle(ID)%loc%Y,n_col)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)   &
+             * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,n_col)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use = &
             O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)   &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use = &
             O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.) &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen<=mo2/iox)
              
     Lab_real_new = Lab_real -( &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,n_col)%oxygen  +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen    & 
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,n_col)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,n_col)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
       else if (particle(ID)%loc%Y == 1) then 
     O2(particle(ID)%loc%Y,n_col)%Oxygen_use = &
             O2(particle(ID)%loc%Y,n_col)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.) &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,n_col)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use = &
             O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)  &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen<=mo2/iox)
              
-    O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use = &
-            O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+    O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen_use = &
+            O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen_use + &
+             Pr_Cummulative/(TimeScale/365.)   &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen<=mo2/iox)
              
     Lab_real_new = Lab_real -( &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,n_col)%oxygen  +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen    & 
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,n_col)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,n_col)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
        else 
     O2(particle(ID)%loc%Y,n_col)%Oxygen_use = &
              O2(particle(ID)%loc%Y,n_col)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)   &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,n_col)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use = &
              O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.) &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use = &
              O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)  &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen_use = &
              O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.) &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen<=mo2/iox)
              
     Lab_real_new = Lab_real -( &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,n_col)%oxygen   +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen  + &
-             Pr_Cummulative*O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen    & 
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,n_col)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,n_col)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              ) *iox/OM_uni
         end if 
         
@@ -4746,61 +4985,81 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
       if (particle(ID)%loc%Y == n_row) then 
     O2(particle(ID)%loc%Y,1)%Oxygen_use = &
              O2(particle(ID)%loc%Y,1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)  &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,1)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen_use = &
              O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)  &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use = &
              O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)  &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen<=mo2/iox)
              
     Lab_real_new = Lab_real - ( &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,1)%oxygen   +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen    & 
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
       else if (particle(ID)%loc%Y == 1) then 
     O2(particle(ID)%loc%Y,1)%Oxygen_use = &
              O2(particle(ID)%loc%Y,1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)  &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,1)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen_use = &
              O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.) &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen<=mo2/iox)
              
-    O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use = &
-             O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+    O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen_use = &
+             O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen_use + &
+             Pr_Cummulative/(TimeScale/365.)  &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen<=mo2/iox)
              
     Lab_real_new = Lab_real - ( &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,1)%oxygen   +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen    & 
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
        else 
     O2(particle(ID)%loc%Y,1)%Oxygen_use = &
              O2(particle(ID)%loc%Y,1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.) &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,1)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen_use = &
              O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.) &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use = &
              O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.) &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen_use = &
              O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.) &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen<=mo2/iox)
              
     Lab_real_new = Lab_real -( &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,1)%oxygen   +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen  +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen  +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen    & 
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
       end if
       
@@ -4808,61 +5067,81 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
       if (particle(ID)%loc%Y == n_row) then 
     O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use = &
              O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)  &
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen_use = &
              O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)&
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use = &
              O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)&
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen<=mo2/iox)
              
     Lab_real_new = Lab_real - ( &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen    & 
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
       else if (particle(ID)%loc%Y == 1) then 
     O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use = &
              O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)&
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen_use = &
              O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)&
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use = &
              O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)&
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen<=mo2/iox)
              
     Lab_real_new = Lab_real - ( &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen    & 
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
        else 
     O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use = &
              O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)&
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen_use = &
              O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)&
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use = &
              O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)&
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen<=mo2/iox)
              
     O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen_use = &
              O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen_use + &
-             Pr_Cummulative/(TimeScale/365.)
+             Pr_Cummulative/(TimeScale/365.)&
+      * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen<=mo2/iox)
              
     Lab_real_new = Lab_real -( &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen  +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen +  &
-             Pr_Cummulative*O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen    & 
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+             Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
+                ,1.,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
       end if
     end if
@@ -4911,28 +5190,29 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Use GlobalVariables
    implicit none
    Real :: YearValue, DayValue, HourValue, MinValue
-   CHARACTER*3 Year_str, day_str
+   CHARACTER*4 Year_str
+   CHARACTER*3 day_str
    Character*2 Hour, Minutes
-   Character*14 CurrentTimeString
+   Character*15 CurrentTimeString
 
      YearValue = Real(Time) * TimeScale / 365.   ! no years elapsed
      DayValue = 365. * (YearValue - Real(INT(YearValue)))
      HourValue = 24. * (DayValue - Real(Int(DayValue)))
      MinValue = 60. * (HourValue - Real(Int(HourValue)))
 
-     write(Year_str, '(I3.3)') Int(YearValue)
+     write(Year_str, '(I4.4)') Int(YearValue)
      write(day_str, '(I3.3)') Int(DayValue)
      write(Hour, '(I2.2)') Int(HourValue)
      write(Minutes, '(I2.2)') Int(MinValue)
 
      CurrentTimeString(1:1) = 'Y'
-     CurrentTimeString(2:4) = Year_str
-     CurrentTimeString(5:5) = 'D'
-     CurrentTimeString(6:8) = day_str
-     CurrentTimeString(9:9) = 'H'
-     CurrentTimeString(10:11) = Hour
-     CurrentTimeString(12:12) = 'M'
-     CurrentTimeString(13:14) = Minutes
+     CurrentTimeString(2:5) = Year_str
+     CurrentTimeString(6:6) = 'D'
+     CurrentTimeString(7:9) = day_str
+     CurrentTimeString(10:10) = 'H'
+     CurrentTimeString(11:12) = Hour
+     CurrentTimeString(13:13) = 'M'
+     CurrentTimeString(14:15) = Minutes
 
    End Function CurrentTimeString
 
@@ -4982,6 +5262,25 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    poly = clc
    
    end function poly
+
+   ! ***************************
+   
+   function merge2(a,b,n)
+   
+   implicit none
+   
+   logical :: n 
+   real :: a,b,merge2
+   
+   if (n) then
+     merge2 = a
+   else 
+     merge2 = b
+   endif
+   
+   end function merge2
+   
+   ! *************************
    
    
    

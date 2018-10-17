@@ -8,7 +8,7 @@ implicit none
 contains
 
    ! *********************************************************
-
+ 
    SubRoutine Output_O2txtImg()
 
    Use GlobalVariables
@@ -270,11 +270,29 @@ contains
    
    ! logical :: only_sed
    
-   real, parameter :: rx_ex = 0.0  ! 1.0 if reaction is explicitly reflected
-   real, parameter :: rx_imp = 1.0 - rx_ex  ! 1.0 if reaction is implicitly reflected
+   ! real, parameter :: rx_ex = 0.0  ! 1.0 if reaction is explicitly reflected
+   ! real, parameter :: rx_imp = 1.0 - rx_ex  ! 1.0 if reaction is implicitly reflected
+   
+   real :: rx_ex = 0.0  ! 1.0 if reaction is explicitly reflected
+   real :: rx_imp = 1.0 !  - rx_ex  ! 1.0 if reaction is implicitly reflected
    
    real ::  shear, visc
    integer :: sedloc
+   
+   real :: fact_law1, fact_law2 
+   
+   
+   select case (trim(adjustl(O2ratelaw)))
+     case('linear','LINEAR','Linear')
+        fact_law1 = 0d0
+        fact_law2 = 1d0
+     case('zero','ZERO','Zero')
+        fact_law1 = 0d0
+        fact_law2 = 0d0
+     case('monod','MONOD','Monod')
+        fact_law1 = 1d0
+        fact_law2 = 0d0
+   end select 
    
    
    y_fin = n_row   
@@ -460,7 +478,17 @@ contains
 	   if (Vo(xx,yy) == 0.) tmpV = 1e20
 	   if (Vo(xx,yy) /= 0.) tmpV = Vo(xx,yy)
        
-       rxn = rx_ex*O2(yy,xx)%oxygen_use*O2(yy,xx)%oxygen
+       
+       
+       rx_ex = merge(1d0, 0d0,  &
+         (fact_law1==0d0 .and. fact_law2==0d0).or. &
+         (fact_Law1==1d0 .and. O2(yy,xx)%oxygen > mo2/iox))
+       
+       rx_imp = merge(1d0,0d0,  &
+                       (fact_law1==1d0 .and. o2(yy,xx)%oxygen <= mo2/iox).or.  &
+                       (fact_law1==0d0 .and. fact_law2==1d0))  
+       
+       rxn = rx_ex*O2(yy,xx)%oxygen_use*O2(yy,xx)%oxygen  
        
        b(j) = b(j) - ox_c/dt + rxn
      

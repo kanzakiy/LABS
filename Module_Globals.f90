@@ -29,6 +29,8 @@
    logical, save :: I_shape    !!!  YK
    logical, save :: flow_ON    !!!  YK
    logical, save :: Detail_Log    !!!  YK
+   logical, save :: Ash_ON    !!!  YK
+   logical, save :: Incl_ASH    !!!  YK
 
    Integer, Save :: N_Ind, N_Row, N_Col, N_Cell, Buffer_Zone, N_RowWater, N_RowSed, N_LabilityClasses
    Integer, Save :: Total_N_Particles, Total_N_Particles0, ParticleTolerance
@@ -46,10 +48,13 @@
    Real, Save    :: AREA_Total
    Real, Save    :: TotOrgDecay, TotResp, TotO2Dif, TotAbio, TotO2Adv   !! YK
    real, save    :: totO2, pretotO2
+   real, save    :: Time_Ash       !! YK
+   real, save    :: Ash_thickness       !! YK
+   real, save    :: Ash_porosity       !! YK
 
    Character*3   :: Porosity_Type
    Character*14  :: CurrentTime
-   Character*255  :: WorkDir, Workname, Today
+   Character*255  :: WorkDir, Workname, Today, O2ratelaw
 
    Integer, Parameter :: w=0, p=-1   ! values of water (w) and particles (p) used in Particle%Class (see below)
    Real, Parameter :: pi = 3.14159
@@ -71,13 +76,24 @@
      Real    :: OMact, OMact_0
      Integer :: OM_Time0
    End Type Tracer_OM
+   
+   Type Tracer_Ash
+     Real    :: Ashact, Ashact_0
+     Integer :: Ash_Time0
+   End Type Tracer_Ash
 
    Type Particle_Char
      Integer           :: Lability, Lability_Time0, Plane
      Type(Tracer)      :: Pb
      Type(Tracer_OM)      :: OM
+     ! Type(Tracer_Ash)      :: Ash
      Type(Coordinates) :: Loc, Loc_Init
    End Type Particle_Char
+   
+   Type Particle_Char2
+     Type(Tracer_Ash)      :: Ash
+     Type(Coordinates) :: Loc, Loc_Init
+   End Type Particle_Char2
 
    Type Intake
      Real    :: Rate, Selectivity
@@ -123,6 +139,7 @@
    Type(Coordinates), Allocatable, Save    :: Org_Loc(:,:), Block_loc(:), Tail(:)
    Type(Particle_Char), Allocatable, Save  :: Particle(:)
    Type(Organism_Char), Allocatable, Save  :: Org(:)
+   Type(Particle_Char2), Allocatable, Save  :: Particle2(:)
    
    Type(oxygen_conc), Allocatable, Save    :: O2(:,:)  !! YK
    Type(CellContent), Allocatable, Save    :: Matrix_chk(:,:)  !! YK
@@ -157,7 +174,7 @@
    
    Integer, Parameter :: poly_fit = 100
    
-   Integer, Parameter :: File_Diet = 19, File_Core = 29, File_Core_M = 39, File_Core_L = 49
+   Integer, Parameter :: File_Diet = 19, File_Core = 29, File_Core_M = 39, File_Core_L = 49, File_Core_A = 59
    
    real, parameter :: po_particle = 0.9
    real, parameter :: iox = 220.e-6  ! mol/L
@@ -165,6 +182,7 @@
    real, parameter :: fact = 1e0/220.e-6   ! YK
    real, parameter :: bio_fact = 1e4  
    real, parameter :: dif_0 = 387.8928 ! cm^2/yr
+   real, parameter :: mo2 = 8e-6 ! mol/L
    
    !  Summary of the structure of the User defined types
    !
