@@ -3,7 +3,9 @@
 objects = Module_Globals.o Module_Gif_1.o Module_Gif_2.o \
  pfit.o  mod_o2_dif+adv.o mod_NS_MAC_2D.o LABS.o  
 wrapper = umf4_f77wrapper.o
-switch = -g -fcheck=all
+# switch = -g -fcheck=all
+switch = -O2 -fimplicit-none  -Wall  -Wline-truncation  -Wcharacter-truncation  -Wsurprising \
+  -Waliasing  -Wimplicit-interface  -Wunused-parameter  -fwhole-file  -fcheck=all  -std=gnu  -pedantic  -fbacktrace
 # switch = 
 libs = -lumfpack -lamd -lcholmod -lcolamd -lsuitesparseconfig -llapack -lopenblas
 f90comp = gfortran

@@ -186,8 +186,8 @@ contains
     real(8) :: dinverse(size(A,1),size(A,1))
 
     integer :: ipiv(size(A,1)), ierr, lwork
-    real*8, allocatable :: work(:)
-    real*8 :: work1(1)
+    real(8), allocatable :: work(:)
+    real(8) :: work1(1)
     
     external dgetri
 
