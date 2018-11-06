@@ -86,16 +86,16 @@
    oxygen_ON = .false.
    
    oxFB_ON = .true.
-   oxFB_ON = .false.
+   ! oxFB_ON = .false.
    
    Resp_ON = .true.
    ! resp_ON = .false.
    
    errCHk = .true.
-   errChk = .false.
+   ! errChk = .false.
    
    I_shape = .true.
-   ! I_shape = .false.
+   I_shape = .false.
    
    flow_ON = .true.
    flow_ON = .false.
@@ -107,7 +107,7 @@
    Detail_Log = .False.
 
    Incl_ASH = .True. 
-   ! Incl_ASH = .False. 
+   Incl_ASH = .False. 
    
    O2ratelaw = 'linear'
    ! O2ratelaw = 'monod'
@@ -743,7 +743,7 @@
        
        do j = 1, N_labilityClasses
          lability_decayConstant(j) = 1e-1   ! /yr for labile OM cf., Canfield, 1994
-		 lability_decayConstant(j) = lability_decayConstant(j)*1e1   ! when high rate is considered 
+		 ! lability_decayConstant(j) = lability_decayConstant(j)*1e1   ! when high rate is considered 
          lability_proportion(j) = j 
        end do
 
@@ -875,7 +875,7 @@
                If (EgestRate .ge. IngestRate) Org(i)%Can%Egest = .true.    !! this make sure a low fullness and efficient ingestion/egestion cycles
                ! If (EgestRate .lt. Org(i)%Ingest%Rate) Org(i)%Can%Egest = .true.    !! this make sure a low fullness and efficient ingestion/egestion cycles
                
-               If (I_shape .and. i == Org_ID_ishape) Org(i)%Can%Egest = .false.   ! let worm floating around
+               ! If (I_shape .and. i == Org_ID_ishape) Org(i)%Can%Egest = .false.   ! let worm floating around
                
                
              End if
@@ -1161,7 +1161,8 @@
      End do        ! j index
 
      Preferable = Lability_mean
-     if (oxFB_ON) Preferable = Lability_mean*O2_mean    !!  if considering oxygen_feedback on organism movement
+     ! if (oxFB_ON) Preferable = Lability_mean*O2_mean    !!  if considering oxygen_feedback on organism movement
+     if (oxFB_ON) Preferable = Lability_mean*O2_mean*O2_mean    !!  stronger O2 feedback
      ! if (oxFB_ON) Preferable = O2_mean    !!   oxygen_feedback alone 
 	 
 	 If ((I_shape) .and. i == Org_ID_ishape) then 
@@ -4840,7 +4841,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
    Depth = Real(Y - N_RowWAter) * PixelSize
    DepthMAx = Real(N_Row - N_RowWAter) *  PixelSize
-   Lability_pr = 1. - Real(Depth) / DepthMAx
+   ! Lability_pr = 1. - Real(Depth) / DepthMAx
+   Lability_pr = 1. - 0.9*Real(Depth) / DepthMAx  ! some organic matter can remain
+   ! Lability_pr = 1.   ! random distribution
 
        Call Random_Number(URand)
            If (Urand .lt. Lability_pr) then
