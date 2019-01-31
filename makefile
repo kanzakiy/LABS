@@ -10,7 +10,7 @@ switch = -O2 -fimplicit-none  -Wall  -Wline-truncation  -Wcharacter-truncation  
 libs = -lumfpack -lamd -lcholmod -lcolamd -lsuitesparseconfig -llapack -lopenblas
 f90comp = gfortran
 # Makefile
-labs2: $(objects)
+labs: $(objects)
 	$(f90comp) -o $@ $(switch) $(objects) $(wrapper) $(libs)
 globalvariables.mod: Module_Globals.o Module_Globals.f90
 	$(f90comp) -c $(switch) Module_Globals.f90

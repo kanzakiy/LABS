@@ -10,53 +10,53 @@ subroutine flow_calc()
 
 use GlobalVariables
 implicit none
-integer :: xx, yy, cnt, cnt2, xp, xg, yp, yg
-integer :: nx , ny
+integer(kind=4) :: xx, yy, cnt, cnt2, xp, xg, yp, yg
+integer(kind=4) :: nx , ny
 
-integer, allocatable  :: B(:,:)
-integer, allocatable  :: UP(:,:) 
-integer, allocatable  :: DOWN(:,:) 
-integer, allocatable  :: CONN(:,:) 
-integer, allocatable  :: B2(:,:) 
-integer, allocatable  :: Tp(:,:) 
-integer, allocatable  :: Tp2(:,:) 
+integer(kind=4), allocatable  :: B(:,:)
+integer(kind=4), allocatable  :: UP(:,:) 
+integer(kind=4), allocatable  :: DOWN(:,:) 
+integer(kind=4), allocatable  :: CONN(:,:) 
+integer(kind=4), allocatable  :: B2(:,:) 
+integer(kind=4), allocatable  :: Tp(:,:) 
+integer(kind=4), allocatable  :: Tp2(:,:) 
 
-integer :: np, pp, ppp
-integer :: dirc
-integer :: ntc  ! number of total cell 
-integer :: step
-integer :: nstep = 10
+integer(kind=4) :: np, pp, ppp
+integer(kind=4) :: dirc
+integer(kind=4) :: ntc  ! number of total cell 
+integer(kind=4) :: step
+integer(kind=4) :: nstep = 10
 
-integer, allocatable :: Cloc(:,:) ! location of cell associated with cell number
-integer, allocatable :: Cnum(:,:) ! cell number at (x,y)
-integer, allocatable :: CP(:) ! cell number where P is calculated (referred to P-cell)
-integer, allocatable :: CPi(:) ! P-cell number assigned to a cell
-integer, allocatable :: CDN(:,:) ! cell numbers of neighbors of a P-cell 
-integer, allocatable :: CDNt(:,:) ! cell type of neighbors of a P-cell
+integer(kind=4), allocatable :: Cloc(:,:) ! location of cell associated with cell number
+integer(kind=4), allocatable :: Cnum(:,:) ! cell number at (x,y)
+integer(kind=4), allocatable :: CP(:) ! cell number where P is calculated (referred to P-cell)
+integer(kind=4), allocatable :: CPi(:) ! P-cell number assigned to a cell
+integer(kind=4), allocatable :: CDN(:,:) ! cell numbers of neighbors of a P-cell 
+integer(kind=4), allocatable :: CDNt(:,:) ! cell type of neighbors of a P-cell
 
 logical :: flow_dir_x 
 logical :: choice_done
 
-real  :: rdm(5)
-real  :: Ptop = 1d1  ! in g/cm/s/s (= 100 atm, with Pa = 10 g/cm/s/s and 1 atm = 1e5 Pa)
-real  :: Pbot = 1d2
-real  :: VelC          ! in cm/s (= 10 cm/day)
-real  :: new = 0.015d0 ! viscosity in g/cm/s/s
-real  :: delh   ! cm/pixel 
-real  :: delt   ! s
-real  :: delx   ! cm/pixel 
-real  :: dely   ! cm/pixel 
+real(kind=8)  :: rdm(5)
+real(kind=8)  :: Ptop = 1d1  ! in g/cm/s/s (= 100 atm, with Pa = 10 g/cm/s/s and 1 atm = 1e5 Pa)
+real(kind=8)  :: Pbot = 1d2
+real(kind=8)  :: VelC          ! in cm/s (= 10 cm/day)
+real(kind=8)  :: new = 0.015d0 ! viscosity in g/cm/s/s
+real(kind=8)  :: delh   ! cm/pixel 
+real(kind=8)  :: delt   ! s
+real(kind=8)  :: delx   ! cm/pixel 
+real(kind=8)  :: dely   ! cm/pixel 
 
-real ,allocatable :: Pc(:,:)
-real ,allocatable :: Uc(:,:)
-real ,allocatable :: Vc(:,:)
-real ,allocatable :: Um(:,:)
-real ,allocatable :: Vm(:,:)
-real ,allocatable :: Dc(:,:)
-real ,allocatable :: Fc(:,:)
-real ,allocatable :: Gc(:,:)
-real ,allocatable :: Rc(:,:)
-real  :: Ut_l, Ut_r, Vt_t, Vt_b
+real(kind=8) ,allocatable :: Pc(:,:)
+real(kind=8) ,allocatable :: Uc(:,:)
+real(kind=8) ,allocatable :: Vc(:,:)
+real(kind=8) ,allocatable :: Um(:,:)
+real(kind=8) ,allocatable :: Vm(:,:)
+real(kind=8) ,allocatable :: Dc(:,:)
+real(kind=8) ,allocatable :: Fc(:,:)
+real(kind=8) ,allocatable :: Gc(:,:)
+real(kind=8) ,allocatable :: Rc(:,:)
+real(kind=8)  :: Ut_l, Ut_r, Vt_t, Vt_b
 
 integer ( kind = 4 ) :: n, nnz
 integer ( kind = 4 ), allocatable :: ai(:)  ! row number where /=0
@@ -73,9 +73,9 @@ integer ( kind = 8 ) :: symbolic
 integer  ( kind = 4 ) :: sys
 real ( kind = 8 ), allocatable  :: kai(:)
 
-integer :: temp1(5)
-real  :: temp2(5)
-integer :: temp3(5)
+integer(kind=4) :: temp1(5)
+real(kind=8)  :: temp2(5)
+integer(kind=4) :: temp3(5)
 
 logical :: chk_matrix = .false.
 logical :: show_display = .true.
@@ -84,7 +84,7 @@ logical :: simple_test = .false.
 logical :: random_choice = .false.
 logical :: p_create = .true.
 
-real  :: poro = 0.80d0
+real(kind=8)  :: poro = 0.80d0
 
 logical :: const_bot = .false.
 logical :: const_top = .false.
@@ -1235,20 +1235,20 @@ end subroutine flow_calc
 subroutine output_flow()
 use GlobalVariables
 implicit none 
-integer :: nx , ny , xx, yy
-real  :: delx, dely
+integer(kind=4) :: nx , ny , xx, yy
+real(kind=8)  :: delx, dely
 Character*21 numtemp
 
-real ,allocatable :: Pc(:,:)
-real ,allocatable :: Uc(:,:)
-real ,allocatable :: Vc(:,:)
-real ,allocatable :: Um(:,:)
-real ,allocatable :: Vm(:,:)
-real ,allocatable :: Dc(:,:)
-real ,allocatable :: Qcx(:,:)
-real ,allocatable :: Qcy(:,:)
-real ,allocatable :: vabs(:,:)
-real  :: Ut_l, Ut_r, Vt_t, Vt_b
+real(kind=8) ,allocatable :: Pc(:,:)
+real(kind=8) ,allocatable :: Uc(:,:)
+real(kind=8) ,allocatable :: Vc(:,:)
+real(kind=8) ,allocatable :: Um(:,:)
+real(kind=8) ,allocatable :: Vm(:,:)
+real(kind=8) ,allocatable :: Dc(:,:)
+real(kind=8) ,allocatable :: Qcx(:,:)
+real(kind=8) ,allocatable :: Qcy(:,:)
+real(kind=8) ,allocatable :: vabs(:,:)
+real(kind=8)  :: Ut_l, Ut_r, Vt_t, Vt_b
 
 logical :: show_display = .false.
 
@@ -1356,12 +1356,12 @@ end subroutine output_flow
 subroutine heapsort2(n,array,turn)
 !!!  from http://slpr.sakura.ne.jp/qp/sortf90/
   implicit none
-  integer,intent(in)::n
-  integer,intent(out)::turn(1:n)
-  integer,intent(inout)::array(1:n)
+  integer(kind=4),intent(in)::n
+  integer(kind=4),intent(out)::turn(1:n)
+  integer(kind=4),intent(inout)::array(1:n)
  
-  integer::i,k,j,l,m
-  integer::t
+  integer(kind=4)::i,k,j,l,m
+  integer(kind=4)::t
  
   if(n.le.0)then
      write(6,*)"Error, at heapsort"; stop

@@ -23,17 +23,17 @@
 
    implicit none
    Logical               :: TimeToOutput
-   Integer               :: i, DepthToScan, TimeNew, ParticlesToSediment
+   integer(kind=4)               :: i, DepthToScan, TimeNew, ParticlesToSediment
    Character*15          :: CurrentTimeString
-   Real                  :: Area_Period
+   real(kind=8)                  :: Area_Period
    Type(CoOrdinates)     :: Point
-   integer               :: xx, yy, j
-   logical               :: IsWater, IsOrganism, IsParticle
+   integer(kind=4)               :: xx, yy, j
    type(coordinates)     :: org_mid
    logical               :: rec_flow
    
    character*10 dumchr(3)
-   integer dumint(8)
+   integer(kind=4) dumint(8), dumPop, accpat
+   real(kind=8) rnum 
    
    call date_and_time(dumchr(1),dumchr(2),dumchr(3),dumint)
    
@@ -44,6 +44,8 @@
    
    call system ('mkdir -p '//trim(adjustl(Today)))
    call system ('mkdir -p '//trim(adjustl(Today))//'/data')
+   
+   call system ('cp labs.exe '//trim(adjustl(Today)))
 
        OPEN(unit = File_Profile,  file = trim(adjustl(Today))//          &
                                '/DepthProfiles.OUT', status = 'unknown')
@@ -66,11 +68,11 @@
        OPEN(unit = File_flux, file = trim(adjustl(Today))//                           &
                                   '/flux.OUT', status = 'unknown')
        OPEN(unit = File_Log, file = trim(adjustl(Today))//                           &
-                                  '/log.txt', status = 'replace')
-       OPEN(unit = File_flux_txt, file = trim(adjustl(Today))//                           &
-                                  '/flux.txt', status = 'unknown')
-       OPEN(unit = File_Diet, file = trim(adjustl(Today))//                           &
-                                  '/Diet.OUT', status = 'unknown')
+                                  '/log.OUT', status = 'replace')
+       OPEN(unit = File_flux2, file = trim(adjustl(Today))//                           &
+                                  '/flux2.OUT', status = 'unknown')
+       ! OPEN(unit = File_Diet, file = trim(adjustl(Today))//                           &
+                                  ! '/Diet.OUT', status = 'unknown')
        OPEN(unit = File_Core, file = trim(adjustl(Today))//                           &
                                   '/Core.OUT', status = 'unknown')
        OPEN(unit = File_Core_M, file = trim(adjustl(Today))//                           &
@@ -79,6 +81,10 @@
                                   '/Core_L.txt', status = 'unknown')
        OPEN(unit = File_Core_A, file = trim(adjustl(Today))//                           &
                                   '/Core_A.txt', status = 'unknown')
+       OPEN(unit = File_Pop, file = trim(adjustl(Today))//                           &
+                                  '/Pop.OUT', status = 'unknown')
+       OPEN(unit = File_sedrate, file = trim(adjustl(Today))//                           &
+                                  '/sedrate.OUT', status = 'unknown')
 
    ! Begin main program loop
    
@@ -114,6 +120,18 @@
    ! O2ratelaw = 'zero'
 	
    Org_ID_ishape = 1
+   
+   Mod_Pop = .True.
+   Mod_Pop = .False.
+   
+   non_pop =  .true.
+   non_pop = .false.
+   
+   trans_making = .true.
+   ! trans_making = .false.
+   
+   Long_Run = .true.
+   ! Long_Run = .false.
 
 
 
@@ -125,10 +143,13 @@
     Call Output_O2txtImg()
     Call Output_txtImg()
     
-    call gnuplot_flux()
-    call gnuplot_diet()
+    call gnuplot_flux(' ')
+    call gnuplot_flux('2')
    
    Savetime = 1 
+   
+   DumPop = N_Ind
+   accpat=0
 
        DO Time = 1, TimeMax
 
@@ -136,7 +157,10 @@
              Pr_Activity_day = 0.5 * (1. + cos(pi + 2.*pi*(Real(Time)/Real(Day)) ) )
              CurrentTime = CurrentTimeString()
 			 
-			 print*,currenttime
+			 print*,trim(adjustl(workname)),': ', currenttime
+             
+             
+            call chk_org('tmtble')
 			 
          Do i = 1, N_Ind           ! for each organism
 
@@ -174,11 +198,22 @@
          
          !  check for error 
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Tim')
          if (errDetect) then; print *,time, "err after org_move"; write(file_log,*)time, "err after org_move"; end if
-         call Matrix_err_chk()
+         call Matrix_err_chk('Tim')
          if (errDetect) then; print *,time, "err after org_move"; write(file_log,*)time, "err after org_move"; end if 
          end if 
+         
+         ! YK: calculation of depth of seawater-sediment interface at each x
+         do xx = 1, n_col
+            do yy=1,n_row
+                if (matrix(yy,xx)%class==w) cycle
+                if (matrix(yy,xx)%class==p) then 
+                    swi(xx)=yy
+                    exit
+                endif
+            enddo
+        enddo
 
        ! add new particles and sediment them down
            If (Mod(Time,Time_Sediment) .eq. 0) then
@@ -188,6 +223,9 @@
                                  (1.+ cos(pi+ 2.*pi*(Real(Time - Time_Sediment*0.5)/Real(Year))))
                    ParticlesToSediment = ParticlesToSediment_y * ( Area_Period / Area_Total )
                    Call Particle_sediment(ParticlesToSediment)
+                   accpat=accpat+ParticlesToSediment
+                   write(file_sedrate,*) (time/real(year)),accpat*pixelsize/real(n_col)/(time/real(year))*1d3  ! cm/kyr
+                   print*, (time/real(year)),accpat*pixelsize/real(n_col)/(time/real(year))*1d3
                    Call LocateOrganisms_scan()  ! subroutine that collects info of the location of organisms ..
              End if
 
@@ -198,15 +236,16 @@
              ! sneek an output of the current time to show how far the sim has progressed
                  write(*,*) "sedimentation!!",CurrentTime, Time,ParticlesToSediment
                  
-                 
+         call disperse()        ! subroutine to dispers in x direction
+         
          
          !  check for error 
-         if (errChk) then 
-         call Make_matrix_chk()
+         ! if (errChk) then 
+         call Make_matrix_chk('Sed')
          if (errDetect) then; print *,time, "err after sed"; write(file_log,*)time, "err after sed"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Sed')
          if (errDetect) then; print *,time, "err after sed"; write(file_log,*)time, "err after sed"; end if 
-         end if 
+         ! end if 
                  
 
            End if
@@ -232,9 +271,9 @@
          
          !  check for error 
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Ash')
          if (errDetect) then; print *,time, "err after sed"; write(file_log,*)time, "err after sed"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Ash')
          if (errDetect) then; print *,time, "err after sed"; write(file_log,*)time, "err after sed"; end if 
          end if 
                  
@@ -252,9 +291,9 @@
          !  check for error 
          
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Bur')
          if (errDetect) then; print *,time, "err after constrain"; write(file_log,*)time, "err after constrain"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Bur')
          if (errDetect) then; print *,time, "err after constrain"; write(file_log,*)time, "err after constrain"; end if 
          end if 
              
@@ -362,7 +401,13 @@
          end do
          
          end if
-		 
+         
+         If (.not. oxygen_ON) then
+            o2(:,:)%oxygen =1.0
+            call OrgDecay()
+            call fluxes()
+           O2%oxygen_use = 0.0
+		 Endif
 		 
 		 !!   working only when oxygen is switched ------------ END
          
@@ -375,6 +420,8 @@
              ! call OutputData()    !! Added to create movies -------YK 5/22/2017
              TimeNew = Time
            End If
+           
+           ! if (time==25001) TimeToOutput = .true.
 
            If (TimeTOOutput) then
              If (Movies_on) then                       ! movies ... output graphics along a linear timescale
@@ -391,9 +438,9 @@
                  TimeToOutput = .false.                ! turn off output until the next output time
                End if
              Else              
-                 call Make_matrix_chk()
+                 call Make_matrix_chk('Out')
                  if (errDetect) then; print *,time, "err when outputting"; write(file_log,*)time, "err when outputting"; end if  
-                 call Matrix_err_chk()
+                 call Matrix_err_chk('Out')
                  if (errDetect) then; print *,time, "err when outputting"; write(file_log,*)time, "err when outputting"; end if                         ! snapshots at user-defined times
                
                Call OutputData()
@@ -402,12 +449,73 @@
                Call Output_txtImg()
                call Output_txtImg_chk()
                O2%oxygen_use = 0.0
+          
+          if (trans_making) then 
+               call organism_dead(1,.true.)
+               call make_trans()
+               call addpop()
+          endif
+          
                Savetime = savetime + 1       
                TimeToOutput = .false.                  ! turn off output until the next output time
              End if
            End if
 		   
+           !  population modification 
+           if (Mod_Pop) then 
+           
+           ! if (Time ==int(25./timescale) .or. Time ==int(50./timescale) .or. Time ==int(100./timescale)) then 
+             ! call addpop()
+           ! endif
+           
+           If (Mod(Time,Time_Sediment) .eq. 0) then
+                 Call Random_Number(rnum)
+                 print*,'just before addpop'
+                 call addpop()
+                 print*,'finished addpop'
+                 call chk_org('addpop')
+           End if
+           
+           ! if (Time ==int(325./timescale) ) then 
+             ! do while(N_ind>0)  ! extinction 
+             ! i = 1
+             ! call organism_dead(i)
+             ! enddo
+           ! endif
+           
+           if (sum(DeathFlg)/=0) then 
+               do while (sum(DeathFlg)/=0)
+                 do i = 1,N_ind
+                   if (DeathFlg(i)/=0) exit
+                 enddo 
+                 call organism_dead(i,.true.)  ! within mod_pop
+               enddo
+          endif
 		 
+         
+          End if 
+          
+          ! testing no-org
+          if (non_pop .and. time==1) then 
+            call organism_dead(1,.true.)
+            print*,'dead'
+          endif
+          
+          ! if (trans_making) then 
+            ! If (Mod(Time,Time_Sediment) .eq. 0) then
+               ! call organism_dead(1)
+               ! call make_trans()
+               ! call addpop()
+            ! endif
+          ! endif
+          
+         
+         if (Time==1 .or. DumPop/=N_Ind .or. Time==TimeMax) then 
+            write(File_Pop,*) (Time-1)*Timescale/365.25, DumPop
+            write(File_Pop,*) Time*Timescale/365.25, N_Ind
+         endif
+         
+         DumPop = N_Ind
 		 
 		 Vo = 0.
 		 Uo = 0.
@@ -436,6 +544,8 @@
 	   deallocate (Ug,Vg, Pg, Dg) 
 	   deallocate (Uo,Vo) 
 	   deallocate (edif)
+	   deallocate (RespCnst)
+	   deallocate (DeathFlg)
 
        Close(File_Displace)
        Close(File_Displace2)
@@ -449,12 +559,22 @@
        Close(Poly_fit)
        Close(File_flux)
        Close(File_log)
-       Close(File_flux_txt)
-       Close(File_Diet)
+       Close(File_flux2)
+       ! Close(File_Diet)
        Close(File_Core)
        Close(File_Core_M)
        Close(File_Core_L)
        Close(File_Core_A)
+       Close(File_Pop)
+       Close(File_sedrate)
+       
+       do i=1,N_Ind
+       close(1000+PopLogID(i))
+       enddo
+       
+       ! do i =1,PopTot
+         ! call gnuplot_diet(i)
+       ! enddo
 
    End Program
 
@@ -467,13 +587,14 @@
    Use GlobalVariables
    implicit none
    Character*1 :: FeedingType
-   Integer     :: i, j, n, MaxOrgSize, MaxGutCapacity, MinHeadWidth, Lability_tmp
-   Real        :: MatrixDepth, MatrixWidth, Depth_DeadZone, HalfLife
-   Real        :: r_TimeMin, r_TimeMax, r_TimeStep
-   Real        :: ParticleDensity, PArticleSize, Sum_Lability, MaxOrgSpeed, MinWidth, MaxWidth
-   Real        :: tmp_MaxOrgSize, tmp_OrgSize, tmp_Width, tmp_Length
-   Real        :: r_Width, r_Length, r_Speed
-   Real        :: r_IngestRate, r_IngestSelectivity, r_Density
+   integer(kind=4)     :: i, j, n, MaxOrgSize, MaxGutCapacity, MinHeadWidth, Lability_tmp
+   real(kind=8)        :: MatrixDepth, MatrixWidth, Depth_DeadZone, HalfLife
+   real(kind=8)        :: r_TimeMin, r_TimeMax, r_TimeStep
+   real(kind=8)        :: ParticleDensity, PArticleSize, Sum_Lability, MaxOrgSpeed, MinWidth, MaxWidth
+   real(kind=8)        :: tmp_MaxOrgSize, tmp_OrgSize, tmp_Width, tmp_Length
+   real(kind=8)        :: r_Width, r_Length, r_Speed
+   real(kind=8)        :: r_IngestRate, r_IngestSelectivity, r_Density
+   character*32 :: IDdum
    
    ! input user defined variables ..
        OPEN(unit = File_Parameters, file = 'Parameters_IN.txt', status = 'old')
@@ -497,7 +618,7 @@
          READ(File_Parameters,*) Halflife           ! decay constant (22.3 yr for 210Pb)
          READ(File_Parameters,*) Depth_DeadZone     ! Depth at which organisms have ~0 Probability of being found (cm)
          READ(File_Parameters,*) r_TimeMin          ! OUTPUT begins at time = n
-         READ(File_Parameters,*) r_TimeMax          ! Endtime (days)
+         READ(File_Parameters,*) r_TimeMax          ! Endtime (days) changed to years
          READ(File_Parameters,*) r_TimeStep         ! Time steps ... Frequency of data output (days)
        CLOSE(File_Parameters)
 
@@ -559,7 +680,8 @@
        N_Col = CEILING(MatrixWidth/ PixelSize)    ! the number of columns of the matrix
        N_Cell =  N_Row * N_Col           ! the number of cells in the matrix
        Buffer_Zone = CEILING(MaxWidth/PixelSize)  ! depth above the sediment interface that organisms are seeded
-       N_RowWater = 3 * N_Row / 10
+       ! N_RowWater = 3 * N_Row / 10
+       N_RowWater = ceiling(3.5/pixelsize)
        N_RowSed = N_Row - N_RowWater
        DepthToConstrain = N_RowWater    ! this is the depth to which the totalnumber of cells are constrained
 
@@ -581,26 +703,35 @@
          Day   =   1 / TimeScale + Int(2.*mod(1.,Timescale))
          Year  = 365 / TimeScale + Int(2.*mod(365.,Timescale))
 		 
-      N_Outputs = 15
-      If (oxygen_ON) N_Outputs = 73*3
+      ! N_Outputs = 15
+      ! If (oxygen_ON) N_Outputs = 73*3
+      N_Outputs = 10000
       N_Outputs2 = 100000
 
     Allocate (Time_output(N_Outputs))
     Allocate (Time_output2(N_Outputs2))
    
-   if (.not. oxygen_ON) then 
-     Time_Output =(/1,25*Day,50*Day,100*Day,150*Day,200*Day,250*Day,1*Year,2*Year,3*Year,5*Year,10*year,20*year,30*Year,100*year/)
-	 end if 
+   ! if (.not. oxygen_ON) then 
+     ! Time_Output =(/1,25*Day,50*Day,100*Day,150*Day,200*Day,250*Day,1*Year,2*Year,3*Year,5*Year,10*year,20*year,30*Year,100*year/)
+	 ! end if 
 	 
-     do i = 35670, N_Outputs2
+     do i = 1, N_Outputs2
         Time_Output2(i) = i
      end do
      
-	 If (oxygen_ON) then
+	 ! If (oxygen_ON) then
      do i = 1, N_Outputs
         Time_Output(i) = 5000*i
      end do
-	 end if 
+	 ! end if 
+     
+     if (Long_run) then
+        ! Time_Output = Time_Output*10
+        
+         do i = 1, N_Outputs
+            Time_Output(i) = r_TimeStep*year*i
+         end do
+     endif
      
      if (Detail_log) then
      deallocate(Time_output)
@@ -610,7 +741,7 @@
 
    ! rescale time to units of simulation
        TimeMin =  r_TimeMin / TimeScale + Int(2.*mod(r_TimeMin,Timescale))
-       TimeMax =  r_TimeMax / TimeScale + Int(2.*mod(r_TimeMax,Timescale))
+       TimeMax =  (r_TimeMax*365 + 1) / TimeScale + Int(2.*mod(r_TimeMax,Timescale))
        TimeStep = r_TimeStep / TimeScale + Int(2.*mod(r_TimeStep,Timescale))  ! only eefective when movies on 
 
    ! Rescale sedimentation rate:
@@ -638,6 +769,7 @@
 
 
      MaxOrgSize = (1 + (tmp_Width + PixelSize)/PixelSize) * (1 + (tmp_Length+PixelSize)/PixelSize)
+     MaxOrgSize = Ceiling(real(MaxOrgSize)*2.0*2.0)
 !  YK  why adding 1? does not matter because it is for maximum?
 
      ALLOCATE (Matrix(N_Row, N_Col), MatrixOccupancy(N_Row))
@@ -648,6 +780,7 @@
      Allocate (IngestionHistory(N_Ind, Day), MovementHistory(N_Ind, Day))
      
      Allocate (RespHistory(N_Ind, Day),EgestHistory(N_Ind, Day))      
+     Allocate (EnergyHistory(N_Ind, Day), CurrentEnergy(N_Ind))      
      allocate (O2(N_row,n_col))
      allocate (matrix_chk(N_row,n_col))
 	 allocate (Dir_rec(Day,N_IND))
@@ -656,6 +789,11 @@
 	 allocate (Ug(N_col+1,N_row+2),Vg(N_col,N_row+2+1), Pg(N_col,N_row+2), Dg(N_col,N_row+2)) 
 	 allocate (Uo(N_col,N_row),Vo(N_col,N_row))
 	 allocate (edif(n_row, n_col)) 
+	 allocate (DeathFlg(N_Ind)) 
+	 allocate (RespCnst(N_Ind)) 
+	 allocate (PopLogID(N_Ind)) 
+     
+     PopTot = 0
 
    ! Read in again organism info and rescale organism traits to simulation time/space units
        OPEN(unit = File_Organisms, file = 'Organisms.IN', status = 'old')
@@ -711,7 +849,24 @@
          respHistory(i,:)     = 0
          EgestHistory(i,:)     = 0
          
-         print '("=========== properties of organism #",i2," ================")',n
+         CurrentEnergy(i)   = 1.
+         
+         RespCnst(i) = kdcy*bio_fact   ! wt%-1 yr-1
+         DeathFlg(i) = 0
+         
+         PopTot = PopTot + 1
+         PopLogID(i) = PopTot
+         
+         Write(IDdum,'(i3.3)') PopLogID(i)
+         
+         OPEN(unit = 1000+PopLogID(i), file = trim(adjustl(Today))//                           &
+                                  '/Diet-'//trim(adjustl(IDdum))//'.OUT', status = 'unknown')
+         
+         
+         OPEN(unit = File_temp, file = trim(adjustl(Today))//                           &
+                                  '/OrgInfo-'//trim(adjustl(IDdum))//'.txt', status = 'unknown')
+         
+         print '("=========== properties of organism #",i2," ================")',i
          print'("Density (g/cm3): ",f6.2)',Org(i)%Density
          print'("Length (pixels): ",i3.2)',Org(i)%Length
          print'("Width (pixels): ",i3.2)',Org(i)%Width
@@ -719,8 +874,24 @@
          print'("BodySize (pixels): ",i3.2)',Org(i)%BodySize
          print'("MoveRate (pixels/day): ",f6.2)',Org(i)%Move%Rate/TimeScale
          print'("IngestRate (particles/day): ",f6.2)',Org(i)%Ingest%Rate/TimeScale
-         print '("~~~~~~~~~~~ End of properties of organism #",i2," ~~~~~~~~~~~~")',n
+         print '("~~~~~~~~~~~ End of properties of organism #",i2," ~~~~~~~~~~~~")',i
          print*,''
+         
+         write(FIle_temp, '("=========== properties of organism #",i2," ================")')i
+         write(FIle_temp,'("Density (g/cm3): ",f6.2)')Org(i)%Density
+         write(FIle_temp,'("Length (pixels): ",i3.2)')Org(i)%Length
+         write(FIle_temp,'("Width (pixels): ",i3.2)')Org(i)%Width
+         write(FIle_temp,'("HeadSize (pixels): ",i3.2)')Org(i)%HeadSize
+         write(FIle_temp,'("BodySize (pixels): ",i3.2)')Org(i)%BodySize
+         write(FIle_temp,'("MoveRate (pixels/day): ",f6.2)')Org(i)%Move%Rate/TimeScale
+         write(FIle_temp,'("IngestRate (particles/day): ",f6.2)')Org(i)%Ingest%Rate/TimeScale
+         write(FIle_temp, '("~~~~~~~~~~~ End of properties of organism #",i2," ~~~~~~~~~~~~")')i
+         write(FIle_temp,*)''
+         
+         
+         Close(File_temp)
+         
+         call gnuplot_diet(i)
 
        End do
        
@@ -734,6 +905,8 @@
        do i=1, n_ind
          if (MaxGutCapacity .lt. Org(i)%Gut%Capacity) MaxGutCapacity = Org(i)%Gut%Capacity
        End do
+       
+       MaxGutCapacity = ceiling(MaxGutCapacity*2.0*2.0)
 
        DecayConstant = -log(0.5) / HalfLife   ! the decay constant for 210Pb   !  /yr
 
@@ -742,8 +915,7 @@
        Allocate (Lability_decayConstant(N_LabilityClasses), Lability_proportion(N_LabilityClasses))
        
        do j = 1, N_labilityClasses
-         lability_decayConstant(j) = 1e-1   ! /yr for labile OM cf., Canfield, 1994
-		 ! lability_decayConstant(j) = lability_decayConstant(j)*1e1   ! when high rate is considered 
+         lability_decayConstant(j) = kdcy   ! /yr 
          lability_proportion(j) = j 
        end do
 
@@ -771,8 +943,422 @@
 		 flow_loc = coordinates(0,0)
 		 Vb = 0.0
 		 Ub = 0.0
+         
+       allocate(swi(n_col))
+       swi=0
 
    End Subroutine GetUserInput
+
+
+   ! ********************************************************************
+
+   Subroutine AddPop()
+     ! increasing organism population (11/7/2018 YK added)
+
+   Use GlobalVariables
+   implicit none
+   Character*1 :: FeedingType
+   integer(kind=4)     :: i, j, n, MaxOrgSize, MaxGutCapacity, MinHeadWidth, Lability_tmp
+   real(kind=8)        :: MatrixDepth, MatrixWidth, Depth_DeadZone, HalfLife
+   real(kind=8)        :: r_TimeMin, r_TimeMax, r_TimeStep
+   real(kind=8)        :: ParticleDensity, PArticleSize, Sum_Lability, MaxOrgSpeed, MinWidth, MaxWidth
+   real(kind=8)        :: tmp_MaxOrgSize, tmp_OrgSize, tmp_Width, tmp_Length
+   real(kind=8)        :: r_Width, r_Length, r_Speed
+   real(kind=8)        :: r_IngestRate, r_IngestSelectivity, r_Density
+   
+   Type(Organism_Char),allocatable  :: Org_dum(:)
+   Type(Coordinates), Allocatable :: Org_loc_dum(:,:)
+   Type(Coordinates) :: flow_loc_dum(2,N_Ind)
+   Type(CellContent), Allocatable :: Guts_dum(:,:)
+   real(kind=8)        ::  Energy_dum(N_ind),  V_dum(2,N_IND), Resp_dum(N_Ind)
+   integer(kind=4),allocatable     ::  History_dum(:,:),Dir_dum(:,:)
+   integer(kind=4)     :: flg_dum(N_Ind), ID_dum(N_ind)
+   character*36 :: name_dum
+   real(kind=8) :: rnum, rfact 
+   
+   
+   Call Random_Number(rnum)
+   
+   rfact = rnum + 0.5d0
+   if (trans_making) rfact = 1d0
+
+   MaxOrgSize = size(Org_loc(:,1))
+   MaxGutCapacity = size(Guts(:,1))
+   
+   
+   if (allocated(Org_loc_dum)) deallocate(Org_loc_dum)  
+   if (allocated(Guts_dum)) deallocate(Guts_dum)
+   if (allocated(Org_dum)) deallocate(Org_dum)
+   if (allocated(Dir_dum)) deallocate(Dir_dum)
+   if (allocated(History_dum)) deallocate(History_dum)
+   
+   allocate(Org_loc_dum(MaxOrgSize, N_Ind))   
+   allocate (Guts_dum(MaxGutCapacity, N_ind))
+   allocate (Org_dum(N_ind))
+   allocate (History_dum(N_ind,day))
+   allocate (Dir_dum(Day,N_ind))
+   
+   N_Ind = N_Ind + 1
+   
+   ! making copies, deallocate and save existing animals 
+   Org_dum = Org 
+   deallocate(Org)
+   allocate(Org(N_ind))
+   Org(1:N_ind-1) = Org_dum(:)
+   
+   Org_loc_dum = Org_loc 
+   deallocate(Org_loc)
+   Allocate (Org_Loc(MaxOrgSize, N_Ind))
+   Org_loc(:,1:N_Ind-1) = Org_loc_dum(:,:)
+   
+   Guts_dum = guts
+   deallocate(guts)
+   allocate(guts(Maxgutcapacity,N_ind))
+   guts(:,1:N_ind-1)=guts_dum
+   
+   History_dum = IngestionHistory 
+   deallocate(IngestionHistory) 
+   Allocate (IngestionHistory(N_Ind, Day))
+   IngestionHistory(1:N_ind-1,:) = History_dum
+   
+   History_dum = MovementHistory
+   deallocate(MovementHistory)
+   allocate(MovementHistory(N_Ind,Day))
+   MovementHistory(1:N_ind-1,:)=History_dum
+   
+   History_dum=RespHistory
+   deallocate(RespHistory)
+   allocate(RespHistory(N_Ind,Day))
+   RespHistory(1:N_Ind-1,:) = History_dum
+   
+   History_dum = EgestHistory
+   deallocate(EgestHistory)
+   allocate(EgestHistory(N_ind,Day))
+   EgestHistory(1:N_ind-1,:)=History_dum
+   
+   History_dum=EnergyHistory
+   deallocate(EnergyHistory)
+   allocate(EnergyHistory(N_ind,Day))
+   EnergyHistory(1:N_ind-1,:)=History_dum
+   
+   Energy_dum = CurrentEnergy
+   deallocate(CurrentEnergy)
+   allocate(CurrentEnergy(N_ind))
+   CurrentEnergy(1:N_ind-1)=Energy_dum
+   
+   Dir_dum = Dir_rec 
+   deallocate(Dir_rec)
+   allocate(Dir_rec(Day,N_Ind))
+   Dir_rec(:,1:N_ind-1)=Dir_dum
+   
+   V_dum = Ub
+   deallocate(Ub)
+   allocate(Ub(2,N_ind))
+   Ub(:,1:N_Ind-1)=V_dum
+   
+   V_dum = Vb
+   deallocate(Vb)
+   allocate(Vb(2,N_ind))
+   Vb(:,1:N_ind-1)=V_dum
+   
+   flow_loc_dum = flow_loc
+   deallocate(flow_loc)
+   allocate(flow_loc(2,N_ind))
+   flow_loc(:,1:N_ind-1)=flow_loc_dum
+   
+   Resp_dum = RespCnst
+   deallocate(RespCnst)
+   allocate(RespCnst(N_ind))
+   RespCnst(1:N_ind-1)=Resp_dum
+   
+   flg_dum = DeathFlg
+   deallocate(DeathFlg)
+   allocate(DeathFlg(N_ind))
+   DeathFlg(1:N_ind-1)=flg_dum
+   
+   ID_dum = PopLogID
+   deallocate(PopLogID)
+   allocate(PopLogID(N_ind))
+   PopLogID(1:N_ind-1)=ID_dum
+
+   ! Read in again organism info and rescale organism traits to simulation time/space units
+       OPEN(unit = File_Organisms, file = 'Organisms.IN', status = 'old')
+
+         READ(File_Organisms,*) i
+         Read(File_Organisms,*) r_Width
+         Read(File_Organisms,*) r_Length
+         Read(File_Organisms,*) r_Density
+         Read(File_Organisms,*) FeedingType
+         Read(File_Organisms,*) r_Speed
+         Read(File_Organisms,*) r_IngestRate
+         Read(File_Organisms,*) r_IngestSelectivity
+         
+         i = N_Ind
+         
+         ParticleDensity = 2.5 
+
+         Org(i)%Density                = r_Density
+         Org(i)%Pr_GoStraight          = 0.75
+         Org(i)%FeedingType            = FeedingType
+         Org(i)%Length                 = max(Ceiling(((r_Length + PixelSize) / PixelSize)*rfact), 5)
+         Org(i)%Width                  = max(Ceiling(((r_Width + PixelSize) / PixelSize)*rfact), 3)
+         Org(i)%HeadSize               = Org(i)%Width * Org(i)%Width
+         Org(i)%BodySize               = Org(i)%Width * Org(i)%Length
+         Org(i)%Orientation            = 0
+         Org(i)%SensoryRange           = Org(i)%Width      ! this will eventually be made a user input
+         Org(i)%FaecesWidth            = Ceiling(Real(Org(i)%Width) / 4.)
+         Org(i)%Is%Reversing           = .false.
+         Org(i)%Is%WrappingAround      = .false.
+         Org(i)%Is%OnTheEdge           = .false.
+
+         Org(i)%Can%Egest              = .true.
+         Org(i)%Can%Ingest             = .false.
+         Org(i)%Can%Move               = .true.
+
+         Org(i)%Gut%Capacity           = min(ceiling(real(Org(i)%BodySize) / 4.),MaxGutCapacity)
+         Org(i)%Gut%Content            = 0
+         Org(i)%Gut%Pb_Activity        = 0
+
+         Org(i)%Move%Rate              = r_Speed * TimeScale / PixelSize*rfact  ! number of pixels per unit simulation time
+         Org(i)%Move%Distance          = 0
+         Org(i)%Move%Bearing_Distance  = 0
+         Org(i)%Move%Bearing           = 0.0
+         Org(i)%Move%ReverseCount      = 0
+
+         MovementHistory(i,:)          = 0
+
+         Org(i)%Move%StoppedTime       = 0
+
+         Org(i)%Ingest%Rate        = r_IngestRate*Org(i)%Bodysize*Org(i)%Density*Timescale/ParticleDensity*rfact ! n particles per day
+         Org(i)%Ingest%Selectivity = r_IngestSelectivity
+         Org(i)%Ingest%Amount      = 0
+
+         IngestionHistory(i,:)     = 0
+         
+         respHistory(i,:)     = 0
+         EgestHistory(i,:)     = 0
+         
+         RespCnst(i) = kdcy*bio_fact/rfact   ! wt-1 yr-1
+         DeathFlg(i) = 0
+         
+         PopTot = PopTot + 1
+         PopLogID(i) = PopTot
+         
+         Write(name_dum,'(i3.3)') PopLogID(i)
+         
+         OPEN(unit = 1000+PopLogID(i), file = trim(adjustl(Today))//                           &
+                                  '/Diet-'//trim(adjustl(name_dum))//'.OUT', status = 'unknown')
+         
+         
+         OPEN(unit = File_temp, file = trim(adjustl(Today))//                           &
+                                  '/OrgInfo-'//trim(adjustl(name_dum))//'.txt', status = 'unknown')
+         
+         print '("=========== properties of organism #",i2," ================")',i
+         print'("Density (g/cm3): ",f6.2)',Org(i)%Density
+         print'("Length (pixels): ",i3.2)',Org(i)%Length
+         print'("Width (pixels): ",i3.2)',Org(i)%Width
+         print'("HeadSize (pixels): ",i3.2)',Org(i)%HeadSize
+         print'("BodySize (pixels): ",i3.2)',Org(i)%BodySize
+         print'("MoveRate (pixels/day): ",f6.2)',Org(i)%Move%Rate/TimeScale
+         print'("IngestRate (particles/day): ",f6.2)',Org(i)%Ingest%Rate/TimeScale
+         print '("~~~~~~~~~~~ End of properties of organism #",i2," ~~~~~~~~~~~~")',i
+         print*,''
+         
+         write(FIle_temp, '("=========== properties of organism #",i2," ================")')i
+         write(FIle_temp,'("Density (g/cm3): ",f6.2)')Org(i)%Density
+         write(FIle_temp,'("Length (pixels): ",i3.2)')Org(i)%Length
+         write(FIle_temp,'("Width (pixels): ",i3.2)')Org(i)%Width
+         write(FIle_temp,'("HeadSize (pixels): ",i3.2)')Org(i)%HeadSize
+         write(FIle_temp,'("BodySize (pixels): ",i3.2)')Org(i)%BodySize
+         write(FIle_temp,'("MoveRate (pixels/day): ",f6.2)')Org(i)%Move%Rate/TimeScale
+         write(FIle_temp,'("IngestRate (particles/day): ",f6.2)')Org(i)%Ingest%Rate/TimeScale
+         write(FIle_temp, '("~~~~~~~~~~~ End of properties of organism #",i2," ~~~~~~~~~~~~")')i
+         write(FIle_temp,*)''
+         
+         
+         Close(File_temp)
+         
+         call gnuplot_diet(i)
+
+       
+       ! stop
+
+       CLOSE(File_Organisms)
+
+       Guts(:,i) = CellContent(w,w)    ! initialise the guts
+       Org_Loc(:,i) = Coordinates(0,0)
+	   
+       print*,'before populating'
+       
+       Call Matrix_populate(i)
+       
+		 flow_loc(:,i) = coordinates(0,0)
+		 Vb(:,i) = 0.0
+		 Ub(:,i) = 0.0
+         
+         CurrentEnergy(i) = 1.
+
+   End Subroutine AddPop
+
+
+   ! ********************************************************************
+
+   Subroutine KillPop(i)
+     ! decreasing organism population; i is going to be killed (11/7/2018 YK added)
+
+   Use GlobalVariables
+   implicit none
+   integer(kind=4),Intent(in) :: i 
+   Character*1 :: FeedingType
+   integer(kind=4)     :: j, n, MaxOrgSize, MaxGutCapacity, MinHeadWidth, Lability_tmp
+   real(kind=8)        :: MatrixDepth, MatrixWidth, Depth_DeadZone, HalfLife
+   real(kind=8)        :: r_TimeMin, r_TimeMax, r_TimeStep
+   real(kind=8)        :: ParticleDensity, PArticleSize, Sum_Lability, MaxOrgSpeed, MinWidth, MaxWidth
+   real(kind=8)        :: tmp_MaxOrgSize, tmp_OrgSize, tmp_Width, tmp_Length
+   real(kind=8)        :: r_Width, r_Length, r_Speed
+   real(kind=8)        :: r_IngestRate, r_IngestSelectivity, r_Density
+   
+   Type(Organism_Char),allocatable  :: Org_dum(:)
+   Type(Coordinates), Allocatable :: Org_loc_dum(:,:)
+   Type(Coordinates) :: flow_loc_dum(2,N_Ind)
+   Type(CellContent), Allocatable :: Guts_dum(:,:)
+   integer(kind=4)     :: Dir_dum(Day,N_IND), History_dum(5,N_Ind,day), Flg_dum(N_Ind), ID_dum(N_ind)
+   real(kind=8)        :: Energy_dum(N_ind),  V_dum(2,2,N_IND), Resp_dum(N_Ind) 
+   integer(kind=4)     :: cnt1,cnt2, xx, yy
+
+   close(1000+PopLogID(i))
+   
+   MaxOrgSize = size(Org_loc(:,1))
+   MaxGutCapacity = size(Guts(:,1))
+   
+   
+   if (allocated(Org_loc_dum)) deallocate(Org_loc_dum)  
+   if (allocated(Guts_dum)) deallocate(Guts_dum)
+   if (allocated(Org_dum)) deallocate(Org_dum)
+   
+   allocate(Org_loc_dum(MaxOrgSize, N_Ind))   
+   allocate (Guts_dum(MaxGutCapacity, N_ind))
+   allocate (Org_dum(N_ind))
+   
+   N_Ind = N_Ind - 1
+   
+   ! making copies, deallocate and save existing animals 
+   Org_dum = Org 
+   deallocate(Org)
+   allocate(Org(N_ind))
+   
+   Org_loc_dum = Org_loc 
+   deallocate(Org_loc)
+   Allocate (Org_Loc(MaxOrgSize, N_Ind))
+   
+   Guts_dum = guts
+   deallocate(guts)
+   allocate(guts(Maxgutcapacity,N_ind))
+   
+   History_dum(1,:,:) = IngestionHistory 
+   deallocate(IngestionHistory) 
+   Allocate (IngestionHistory(N_Ind, Day))
+   
+   History_dum(2,:,:) = MovementHistory
+   deallocate(MovementHistory)
+   allocate(MovementHistory(N_Ind,Day))
+   
+   History_dum(3,:,:)=RespHistory
+   deallocate(RespHistory)
+   allocate(RespHistory(N_Ind,Day))
+   
+   History_dum(4,:,:) = EgestHistory
+   deallocate(EgestHistory)
+   allocate(EgestHistory(N_ind,Day))
+   
+   History_dum(5,:,:)=EnergyHistory
+   deallocate(EnergyHistory)
+   allocate(EnergyHistory(N_ind,Day))
+   
+   Energy_dum = CurrentEnergy
+   deallocate(CurrentEnergy)
+   allocate(CurrentEnergy(N_ind))
+   
+   Dir_dum = Dir_rec 
+   deallocate(Dir_rec)
+   allocate(Dir_rec(Day,N_Ind))
+   
+   V_dum(1,:,:) = Ub
+   deallocate(Ub)
+   allocate(Ub(2,N_ind))
+   
+   V_dum(2,:,:) = Vb
+   deallocate(Vb)
+   allocate(Vb(2,N_ind))
+   
+   flow_loc_dum = flow_loc
+   deallocate(flow_loc)
+   allocate(flow_loc(2,N_ind))
+   
+   Resp_dum = RespCnst
+   deallocate(RespCnst)
+   allocate(RespCnst(N_ind))
+   
+   Flg_dum = DeathFlg
+   deallocate(DeathFlg)
+   allocate(DeathFlg(N_ind))
+   
+   ID_dum = PopLogID
+   deallocate(PopLogID)
+   allocate(PopLogID(N_ind))
+   
+   
+   cnt1=1
+   cnt2=1
+   do j=1,N_ind
+   if (j==i) then 
+      cnt2=cnt2+1
+   endif
+   Org(cnt1) = Org_dum(cnt2)
+   Org_loc(:,cnt1) = Org_loc_dum(:,cnt2)
+   guts(:,cnt1)=guts_dum(:,cnt2)
+   IngestionHistory(cnt1,:) = History_dum(1,cnt2,:)
+   MovementHistory(cnt1,:)=History_dum(2,cnt2,:)
+   RespHistory(cnt1,:) = History_dum(3,cnt2,:)
+   EgestHistory(cnt1,:)=History_dum(4,cnt2,:)
+   EnergyHistory(cnt1,:)=History_dum(5,cnt2,:)
+   CurrentEnergy(cnt1)=Energy_dum(cnt2)
+   Dir_rec(:,cnt1)=Dir_dum(:,cnt2)
+   Ub(:,cnt1)=V_dum(1,:,cnt2)
+   Vb(:,cnt1)=V_dum(2,:,cnt2)
+   flow_loc(:,cnt1)=flow_loc_dum(:,cnt2)
+   RespCnst(cnt1) = Resp_dum(cnt2)
+   DeathFlg(cnt1) = Flg_dum(cnt2)
+   PopLogID(cnt1) = ID_dum(cnt2)
+   ! if (j/=N_ind+1) then 
+   do n = 1, size(Org_Loc(:,cnt1))
+       xx = Org_Loc(n,cnt1)%X
+       yy = Org_Loc(n,cnt1)%Y
+       if (xx==0 .or. yy==0) cycle 
+       if (Matrix(yy,xx)%class==cnt2) then 
+            Matrix(yy,xx)  = CellContent(n,cnt1) 
+       endif            
+   enddo
+   ! Endif
+   cnt1=cnt1+1
+   cnt2=cnt2+1
+   enddo
+   
+   if (cnt1/=N_ind+1) print*,'Error in KillPop'
+   if (cnt1/=N_ind+1) write(File_Log,*) Time,'Error in KillPop'
+   
+   ! if (j/=N_ind) then 
+   ! do i = 1, size(Org_Loc(:,N_ind+1))
+       ! yy = Org_Loc(i,N_ind+1)%Y
+       ! xx = Org_Loc(i,N_ind+1)%X
+       ! if (xx==0 .or. yy==0) cycle 
+       ! if (Matrix(yy,xx)%class==N_ind+1) then 
+       ! Matrix(yy,xx)  = CellContent(w,w)  
+       ! Endif
+   ! enddo
+   ! endif
+
+   End Subroutine KillPop
 
 
    ! ********************************************************************
@@ -783,16 +1369,16 @@
 
    Use GlobalVariables
    implicit none
-   Integer, Intent(in):: i
-   REal IngestRAte, MovementRate, URand(3), Fullness, Pr_Activity
-   integer :: j
+   integer(kind=4), Intent(in):: i
+   real(kind=8) IngestRAte, MovementRate, URand(3), Fullness, Pr_Activity
+   integer(kind=4) :: j
    Character*21 numtemp
    
-   real :: RespRate_ave
-   integer :: k
-   real :: ave_OM, ptcl_num
+   real(kind=8) :: RespRate_ave
+   integer(kind=4) :: k
+   real(kind=8) :: ave_OM, ptcl_num
    
-   real :: EgestRate 
+   real(kind=8) :: EgestRate, Energy_ave 
    
    ! logical :: IsFloating
    
@@ -801,15 +1387,19 @@
        IngestionHistory(i,:) = EOShift (IngestionHistory(i,:), -1)
        RespHistory(i,:) = EOShift (RespHistory(i,:), -1)
        EgestHistory(i,:) = EOShift (EgestHistory(i,:), -1)
+       EnergyHistory(i,:) = EOShift (EnergyHistory(i,:), -1)
+       
+       EnergyHistory(i,1) = CurrentEnergy(i)
        
    ! calculate moving averages of the rates
        MovementRate = Real(Sum(MovementHistory(i,:))) / Day
        IngestRate = Real(Sum(IngestionHistory(i,:))) / Day  !  n particle per single iteration 
        EgestRate = Real(Sum(EgestHistory(i,:))) / Day  !  n particle per single iteration 
        RespRate_ave = Real(Sum(RespHistory(i,:))) / Day
+       Energy_ave = Real(Sum(EnergyHistory(i,:))) / Day
 	   
-       write(File_Diet,*) Time*Timescale,i,MovementRate, IngestRate, EgestRate, RespRate_ave,Org(i)%Gut%Content &
-                        ,Org(i)%Move%Rate,Org(i)%Ingest%Rate,Org(i)%Gut%Capacity
+       write(1000+PopLogID(i),*) Time*Timescale,i,MovementRate, IngestRate, EgestRate, RespRate_ave,Org(i)%Gut%Content &
+                        ,Org(i)%Move%Rate,Org(i)%Ingest%Rate,Org(i)%Gut%Capacity, currentEnergy(i)
        
    ! check ingestion rates
        If (MovementRate .eq. 0) then               ! not moving
@@ -818,9 +1408,11 @@
          if((Time - Org(i)%Move%StoppedTime) .gt. (Year*.25)) then ! if not moving for a long time  .. let it die
  
 ! this is a fallback routine to catch any anomalies
-           Call Organism_dead(i) 
+           if (.not.Mod_Pop) Call Organism_dead(i,.false.)  ! false death, i.e., regeneration  
+           DeathFlg(i) = 1 ! raise flg to die
 ! dead .. remove and start a new organism
            Org(i)%Move%StoppedTime = 0                              ! reset the counter
+           ! Write(File_Pop,*) Time*Timescale
            Return
          End if
 
@@ -838,6 +1430,15 @@
        ! an additional 0.2 is added to the probability to make the lower threshold atleast 20% activity
        ! other, organism-specific cycles can be added here ...
            Pr_Activity = Pr_activity_year * 0.9  + Pr_Activity_day * 0.1  + 0.2
+           
+           CurrentEnergy(i) = 0.
+           do j = 1, Org(i)%Gut%Capacity         ! set location of particles ..
+             IF (Guts(j,i)%Class .eq. p) CurrentEnergy(i) = CurrentEnergy(i) + Particle(Guts(j,i)%Value)%OM%OMact 
+           End do
+           
+           CurrentEnergy(i) = CurrentEnergy(i)/real(Org(i)%Gut%Capacity) 
+           
+           If (Mod_Pop) Pr_Activity = 0.05+ CurrentEnergy(i)
 		   
              If (URand(1) .lt. Pr_Activity)  then
              If (MovementRate .lt. Org(i)%Move%Rate) then      ! if within tolerance ...
@@ -862,7 +1463,10 @@
                      ! if (fullness < 1.) Org(i)%Can%Ingest = .true.
                    ! end if 
 
-                   if (fullness < 1.) Org(i)%Can%Ingest = .true.                   
+                   if (fullness < 1.) Org(i)%Can%Ingest = .true.
+                   
+                   ! if (currentenergy > 1.) Org(i)%Can%Ingest = .true.                   
+                   ! if (currentenergy > 1.) Org(i)%Can%Ingest = .false.                   
 				 end if 
 				 
                  if (.not.resp_ON) then 
@@ -876,6 +1480,8 @@
                ! If (EgestRate .lt. Org(i)%Ingest%Rate) Org(i)%Can%Egest = .true.    !! this make sure a low fullness and efficient ingestion/egestion cycles
                
                ! If (I_shape .and. i == Org_ID_ishape) Org(i)%Can%Egest = .false.   ! let worm floating around
+               
+               ! if (currentenergy > 1.) Org(i)%Can%Egest = .True.  
                
                
              End if
@@ -892,9 +1498,9 @@
 
    Use GlobalVariables
    Implicit None
-   Integer, Intent(In) :: i
-   Integer :: Possible(4), Direction(4), DirectionToGo, j
-   Real    :: RandomDir(4), ToGo(4), PREFERABLE(4), ToAvoid(4), Bearings(4), RandomWeight, URand(4)
+   integer(kind=4), Intent(In) :: i
+   integer(kind=4) :: Possible(4), Direction(4), DirectionToGo, j
+   real(kind=8)    :: RandomDir(4), ToGo(4), PREFERABLE(4), ToAvoid(4), Bearings(4), RandomWeight, URand(4)
 
    ! As the organism is about to move .. check for exceptions/boundaries
        Call Random_Number(URand)
@@ -956,7 +1562,7 @@
 
    Use GlobalVariables
    Implicit None
-   Integer i
+   integer(kind=4) i
    Type(Coordinates) :: Head_MinVal, Head_MaxVal
 
    Select Case (Org(i)%Orientation)
@@ -983,9 +1589,9 @@
 
    Use GlobalVariables
    Implicit None
-   Integer   :: i, j, N_Particle, N_Organism, N_Water
-   Integer, Intent(In) :: direction(4)
-   Integer, Intent(Out) :: Possible(4)
+   integer(kind=4)   :: i, j, N_Particle, N_Organism, N_Water
+   integer(kind=4), Intent(In) :: direction(4)
+   integer(kind=4), Intent(Out) :: Possible(4)
    Type(Coordinates) :: Point
    
    Possible = (/1, 1, 1, 1/)
@@ -1006,10 +1612,10 @@
 
    Use GlobalVariables
    Implicit None
-   Integer, Intent(In) :: i, Possible(4)
-   Real, Intent(Out)   :: ToAvoid(4)
+   integer(kind=4), Intent(In) :: i, Possible(4)
+   real(kind=8), Intent(Out)   :: ToAvoid(4)
    Type(CoOrdinates)   ::  Head_MinVal, Head_MaxVal
-   Real                :: Porosity_local
+   real(kind=8)                :: Porosity_local
    logical             :: Isfloating
 
      ToAvoid = (/1., 1., 1., 1./)  ! nothing to avoid yet
@@ -1049,10 +1655,10 @@
    Use GlobalVariables
    Implicit None
    Logical :: GetNewBearings
-   Integer     :: j, minVal, DirectionToPoint
-   Integer, Intent(In)  :: i, Direction(4)
-   Real, Intent(Out) :: Bearings(4)
-   Real  :: URand(2)
+   integer(kind=4)     :: j, minVal, DirectionToPoint
+   integer(kind=4), Intent(In)  :: i, Direction(4)
+   real(kind=8), Intent(Out) :: Bearings(4)
+   real(kind=8)  :: URand(2)
    
    Bearings = (/0.1, 0.1, 0.1, 0.1/)
    GetNewBearings = .false.
@@ -1090,17 +1696,17 @@
 
    Use GlobalVariables
    Implicit None
-   Integer             :: j, Y, X, index
-   Integer             :: N_Water(4), N_Particles(4), N_Organism(4)
-   Integer             :: Lability_sum(4)
-   Integer, Intent(In) :: i, Direction(4)
-   Real, Intent(Out)   :: PREFERABLE(4)
-   Real, Intent(In)    :: ToGo(4)
-   Real                :: Lability_mean(4), O2_sum(4), O2_mean(4)
+   integer(kind=4)             :: j, Y, X, index
+   integer(kind=4)             :: N_Water(4), N_Particles(4), N_Organism(4)
+   integer(kind=4)             :: Lability_sum(4)
+   integer(kind=4), Intent(In) :: i, Direction(4)
+   real(kind=8), Intent(Out)   :: PREFERABLE(4)
+   real(kind=8), Intent(In)    :: ToGo(4)
+   real(kind=8)                :: Lability_mean(4), O2_sum(4), O2_mean(4)
    Type(Coordinates)   :: Head_MinVal, Head_MaxVal
    
-   real                ::  Fullness    
-   real                ::  water_mean(4)   
+   real(kind=8)                ::  Fullness    
+   real(kind=8)                ::  water_mean(4)   
 
    ! initialise the counts
        Lability_sum  = 0
@@ -1183,10 +1789,10 @@
    Use GlobalVariables
    Implicit None
    Logical :: InMatrix   
-   Integer, intent(in) :: Y, X, j
-   Integer, intent(inout) :: N_Particles(4), N_Water(4), N_Organism(4), Lability_sum(4)
-   real, intent(inout) :: O2_sum(4)  
-   real     :: Lab_real_New        
+   integer(kind=4), intent(in) :: Y, X, j
+   integer(kind=4), intent(inout) :: N_Particles(4), N_Water(4), N_Organism(4), Lability_sum(4)
+   real(kind=8), intent(inout) :: O2_sum(4)  
+   real(kind=8)     :: Lab_real_New        
    
    If (InMAtrix(CoOrdinates(Y,X))) then
      Select Case (Matrix(Y,X)%Class)
@@ -1213,7 +1819,7 @@
 
    Use GlobalVariables
    Implicit None
-   Integer, Intent(In) :: i, DirectiontoGo
+   integer(kind=4), Intent(In) :: i, DirectiontoGo
    
    Select Case (Org(i)%Orientation - DirectiontoGo)
      Case (0)
@@ -1235,13 +1841,13 @@
 
    Use GlobalVariables
    Implicit None
-   Integer :: j
-   Integer, Intent(In) :: i, Angle
+   integer(kind=4) :: j
+   integer(kind=4), Intent(In) :: i, Angle
    Type(CellContent) :: Image_ID(Org(i)%Width * Org(i)%Width)
    Type(Coordinates) :: Image(Org(i)%Width * Org(i)%Width)
    Type(Coordinates) :: Head_MinVal, Head_MaxVal
    
-   integer :: xnew, ynew, xnew_2, ynew_2
+   integer(kind=4) :: xnew, ynew, xnew_2, ynew_2
    
    Call Head_locate(i, Head_MinVal, Head_MaxVal)
     
@@ -1327,7 +1933,7 @@
 
    Use GlobalVariables
    Implicit None
-   Integer i, Orientation
+   integer(kind=4) i, Orientation
    Type(CoOrdinates) :: Point, Head_MinVal, Head_MaxVal
    
    Call Head_locate(i, Head_MinVal, Head_MaxVal)
@@ -1368,8 +1974,8 @@
 
    Use GlobalVariables
    Implicit None
-   Integer i, X, Y, k, Orientation
-   Integer N_Particle, N_Organism, N_Water
+   integer(kind=4) i, X, Y, k, Orientation
+   integer(kind=4) N_Particle, N_Organism, N_Water
    Type(Coordinates) :: Point
    
    k     = 0
@@ -1470,8 +2076,8 @@
    Use GlobalVariables
    Implicit None
    Logical Inmatrix  !YK  function
-   Integer X, Y
-   Integer N_Particle, N_Organism, N_Water
+   integer(kind=4) X, Y
+   integer(kind=4) N_Particle, N_Organism, N_Water
    
      if (InMatrix(CoOrdinates(Y,X))) then
        Select Case (Matrix(Y,X)%Class)
@@ -1496,9 +2102,12 @@
    Use GlobalVariables
    use ieee_arithmetic
    implicit none
-   Integer ::  i, j, dX, dY
+   integer(kind=4) ::  i, j, dX, dY
    Type(Coordinates) :: Image(Org(i)%BodySize)
    Type(Coordinates) :: Image_O2(Org(i)%BodySize)
+   
+   ! if (CurrentEnergy < 1.) return
+   
    
    If (Org(i)%Can%Move) then
    
@@ -1546,6 +2155,9 @@
 	 
        Dir_rec(:,i) = EOShift (Dir_rec(:,i), -1)
 	   Dir_rec(1,i) = Org(i)%Orientation
+               
+       ! EnergyHistory(i,1) = EnergyHistory(i,1) - 0.01   ! increment the running average
+       ! CurrentEnergy = currentEnergy - 0.01
 	   
 	   select case(Org(i)%Orientation)
 	     case(0)
@@ -1562,9 +2174,9 @@
 	 
      
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Mov')
          if (errDetect) then; print *,time, "err after org_move(sub)"; write(file_log,*)time, "err after org_move(sub)"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Mov')
          if (errDetect) then; print *,time, "err after org_move(sub)"; write(file_log,*)time, "err after org_move(sub)"; end if 
 		 if ((any(Org_loc%X<0)) .or. (any(Org_loc%Y <0)) .or. (any(Org_loc%Y > N_row)) .or. (any(Org_loc%Y > N_row))) then
 		   print *, 'errrrrrrr in org_loc'
@@ -1578,8 +2190,8 @@
    Subroutine LookupDirection(MoveOrient, dy, dX)
      ! Covert direction to move into translational vectors (dY,dX)
 
-   Integer, Intent (in)  :: MoveOrient
-   Integer, Intent (out) :: dy, dx
+   integer(kind=4), Intent (in)  :: MoveOrient
+   integer(kind=4), Intent (out) :: dy, dx
 
    
      Select Case (MoveOrient)  ! (dX =+1 is right;  -1 is left);  (dY =+1  is down;-1 is up)
@@ -1605,8 +2217,8 @@
    Use GlobalVariables
    Implicit None
    Logical :: OnEdge        ! YK function 
-   Integer :: j, X_new, DirectionToGo, dX
-   Integer, Intent(IN) :: i
+   integer(kind=4) :: j, X_new, DirectionToGo, dX
+   integer(kind=4), Intent(IN) :: i
    Type(CoOrdinates) :: Point
 
    If (.not. Org(i)%Is%WrappingAround) then     ! first time around  
@@ -1676,9 +2288,9 @@
 	   
 	   
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Rel')
          if (errDetect) then; print *,time, "err after relocate"; write(file_log,*)time, "err after relocate"; end if
-         call Matrix_err_chk()
+         call Matrix_err_chk('Rel')
          if (errDetect) then; print *,time, "err after relocate"; write(file_log,*)time, "err after relocate"; end if 
 		 if ((any(Org_loc%X<0)) .or. (any(Org_loc%Y <0)) .or. (any(Org_loc%Y > N_row)) .or. (any(Org_loc%Y > N_row))) then
 		   print *, 'errrrrrrr in org_loc'
@@ -1696,16 +2308,16 @@
    use ieee_arithmetic
    Implicit None
    Logical :: InMatrix                               
-   Integer :: j, neck, dx, dy, Reversedirection
-   Integer, Intent(IN) :: i
+   integer(kind=4) :: j, neck, dx, dy, Reversedirection
+   integer(kind=4), Intent(IN) :: i
    Type(Coordinates) :: Image(Org(i)%BodySize), Point
    
    Type(Coordinates) :: Image_2(Org(i)%BodySize)    
-   integer           :: RevDir           
-   integer :: xx, yy, k, o, oo , xmx, xmn, ymx, ymn
-   integer :: DirChk(4), PreDir, PreOri, rec_image(Org(i)%length-Org(i)%width)
+   integer(kind=4)           :: RevDir           
+   integer(kind=4) :: xx, yy, k, o, oo , xmx, xmn, ymx, ymn
+   integer(kind=4) :: DirChk(4), PreDir, PreOri, rec_image(Org(i)%length-Org(i)%width)
    
-   real :: V_tmp(2), U_tmp(2)
+   real(kind=8) :: V_tmp(2), U_tmp(2)
    
    
    neck = Org(i)%HeadSize+1    ! index of the neck area
@@ -1899,9 +2511,9 @@
        End if
        
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('REv')
          if (errDetect) then; print *,time, "err after reverse"; write(file_log,*)time, "err after reverse"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Rev')
          if (errDetect) then; print *,time, "err after reverse"; write(file_log,*)time, "err after reverse"; end if 
 		 if ((any(Org_loc%X<0)) .or. (any(Org_loc%Y <0)) .or. (any(Org_loc%Y > N_row)) .or. (any(Org_loc%Y > N_row))) then
 		   print *, 'errrrrrrr in org_loc'
@@ -1912,17 +2524,18 @@
 
    ! ***************
 
-   Subroutine Organism_dead(i)
+   Subroutine Organism_dead(i, kill)
      ! remove organism from matrix, releasing the particles in its guts and re-initialise at the water interface
 
    Use GlobalVariables
    Implicit None
-   Logical :: IsWater
-   Integer :: j, k
-   Integer, Intent(IN) :: i
-   Real :: URand
+   Logical :: IsWater, InMatrix
+   integer(kind=4) :: j, k
+   integer(kind=4), Intent(IN) :: i
+   real(kind=8) :: URand
+   logical, intent(IN) :: kill
    
-   integer :: xx, yy
+   integer(kind=4) :: xx, yy
    
      Do j = 1, Org(i)%BodySize
        Matrix(Org_loc(j,i)%Y,Org_loc(j,i)%X) = CellContent(w,w)
@@ -1932,8 +2545,12 @@
        If (Guts(j,i)%Class .eq. p) then
          do
              Call Random_Number(URand)
-             k = URand * Org(i)%BodySize + 1
-             If (IsWater(Org_loc(k,i))) then
+             k = URand * Org(i)%BodySize + 1  ! randomly choosing a location within previous body space
+             if (.not.inmatrix(Org_loc(k,i))) then 
+                print*,'error: in Organism_dead'
+                write(file_log,*)'error: in Organism_dead'
+             endif
+             If (IsWater(Org_loc(k,i))) then  
                  MAtrix(Org_loc(k,i)%Y, Org_loc(k,i)%X) = Guts(j,i)
 				 particle(Guts(j,i)%value)%loc = Org_loc(k,i)   !! YK 
 				 particle2(Guts(j,i)%value)%loc = Org_loc(k,i)   !! YK 
@@ -1944,13 +2561,28 @@
          End do
        End if
      End do
-
-     Call Matrix_populate(i)
+     
+     ! If (.not. non_pop) then 
+        
+        ! If (Mod_pop .or. trans_making) then 
+           ! Call KillPop(i)
+        ! else 
+            ! call Matrix_populate(i)
+        ! endif
+     ! Else if (non_pop) then
+        ! Call KillPop(i)
+     ! Endif
+     
+     if (kill) then 
+       call killpop(i)
+     else 
+       call matrix_populate(i)
+     endif
          
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Ded')
          if (errDetect) then; print *,time, "err after dead"; write(file_log,*)time, "err after dead"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Ded')
          if (errDetect) then; print *,time, "err after dead"; write(file_log,*)time, "err after dead"; end if 
 		 if ((any(Org_loc%X<0)) .or. (any(Org_loc%Y <0)) .or. (any(Org_loc%Y > N_row)) .or. (any(Org_loc%Y > N_row))) then
 		   print *, 'errrrrrrr in org_loc'
@@ -1966,12 +2598,12 @@
    Use GlobalVariables
    use ieee_arithmetic
    Implicit None
-   Integer :: j, k, dx, dy, X_new
-   Integer, Intent(IN) :: i
+   integer(kind=4) :: j, k, dx, dy, X_new
+   integer(kind=4), Intent(IN) :: i
    Type(Coordinates) :: Image(Org(i)%BodySize)
    
-   integer :: xx, yy
-   logical :: IsWater
+   
+   ! if (CurrentEnergy < 1.) return
 
    dy = 0
 
@@ -2031,6 +2663,9 @@
 
      MovementHistory(i,1) = 1
      Org(i)%Move%Bearing_Distance = Org(i)%Move%Bearing_Distance + 1
+               
+     ! EnergyHistory(i,1) = EnergyHistory(i,1) - 0.01   ! increment the running average
+     ! CurrentEnergy = currentEnergy - 0.01
 	 
 	 
        Dir_rec(:,i) = EOShift (Dir_rec(:,i), -1)
@@ -2051,9 +2686,9 @@
 		 end select
      
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Wra')
          if (errDetect) then; print *,time, "err after wrap"; write(file_log,*)time, "err after wrap"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Wra')
          if (errDetect) then; print *,time, "err after wrap"; write(file_log,*)time, "err after wrap"; end if 
 		 if ((any(Org_loc%X<0)) .or. (any(Org_loc%Y <0)) .or. (any(Org_loc%Y > N_row)) .or. (any(Org_loc%Y > N_row))) then
 		   print *, 'errrrrrrr in org_loc'
@@ -2071,9 +2706,9 @@
    Use GlobalVariables
    use ieee_arithmetic
    Implicit None
-   Integer ::  X, Y, k, Particle_ID, Lability
-   Real :: Porosity, DEpth, URand
-   real :: lab_real
+   integer(kind=4) ::  X, Y, k, Particle_ID, Lability
+   real(kind=8) :: Porosity, DEpth, URand
+   real(kind=8) :: lab_real
    
    ! initialise the particles and matrix
        Matrix = CellContent(w,w)  ! fill with water
@@ -2152,10 +2787,11 @@
    Use GlobalVariables
    Implicit None
    Logical :: IsMoveable, InMatrix, Finished, IsParticle
-   Integer :: i, j, k, X, Y, Orientation
-   Real    :: URand(3)
+   integer(kind=4),intent(In) :: i
+   integer(kind=4) :: j, k, X, Y, Orientation
+   real(kind=8)    :: URand(3)
 
-   integer :: xx, yy
+   integer(kind=4) :: xx, yy, p_cnt
 
      j = 0
      Finished = .false.
@@ -2172,6 +2808,8 @@
 
          Orientation = Int(URand(3) * 4)
          Finished = .true.
+         
+         p_cnt = 0
 
          if (Orientation .le. 2) then
            Orientation = 1 ! force horizontal
@@ -2184,6 +2822,7 @@
            Org(i)%Orientation = 0
 main0:    DO Y = Org_Loc(1,i)%Y, Org_Loc(1,i)%Y+(Org(i)%Length-1), 1
              DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Width-1), 1
+                 
                  IF (.not. InMatrix(CoOrdinates(Y,X))) then
                    Finished = .false.
                    Exit main0
@@ -2192,6 +2831,10 @@ main0:    DO Y = Org_Loc(1,i)%Y, Org_Loc(1,i)%Y+(Org(i)%Length-1), 1
                    Finished = .false.
                    End if
                  END IF
+                 
+                 if (IsParticle(CoOrdinates(Y,X))) p_cnt = p_cnt + 1
+                 if (p_cnt >= Org(i)%Gut%Capacity) Finished = .false.
+                 
              END Do
            END Do main0
 
@@ -2199,6 +2842,7 @@ main0:    DO Y = Org_Loc(1,i)%Y, Org_Loc(1,i)%Y+(Org(i)%Length-1), 1
            Org(i)%Orientation = 90
 main90:   DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X-(Org(i)%Length-1), -1
              DO Y = Org_Loc(1,i)%Y, Org_Loc(1,i)%Y+(Org(i)%Width-1), 1
+                 
                  IF (.not. InMatrix(CoOrdinates(Y,X))) then
                    Finished = .false.
                    Exit main90
@@ -2207,6 +2851,10 @@ main90:   DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X-(Org(i)%Length-1), -1
                    Finished = .false.
                    End if
                  END IF
+             
+                 if (IsParticle(CoOrdinates(Y,X))) p_cnt = p_cnt + 1
+                 if (p_cnt >= Org(i)%Gut%Capacity) Finished = .false.
+                 
              END Do
            END Do main90
 
@@ -2214,6 +2862,7 @@ main90:   DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X-(Org(i)%Length-1), -1
              Org(i)%Orientation = 180
 main180:    DO Y = Org_Loc(1,i)%Y, Org_Loc(1,i)%Y - (Org(i)%Length-1), -1
                DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X - (Org(i)%Width-1), -1
+                 
                    IF (.not. InMatrix(CoOrdinates(Y,X))) then
                      Finished = .false.
                      Exit main180
@@ -2222,6 +2871,10 @@ main180:    DO Y = Org_Loc(1,i)%Y, Org_Loc(1,i)%Y - (Org(i)%Length-1), -1
                      Finished = .false.
                      End if
                    END IF
+                 
+                 if (IsParticle(CoOrdinates(Y,X))) p_cnt = p_cnt + 1
+                 if (p_cnt >= Org(i)%Gut%Capacity) Finished = .false.
+                 
                END Do
              END Do main180
 
@@ -2229,6 +2882,7 @@ main180:    DO Y = Org_Loc(1,i)%Y, Org_Loc(1,i)%Y - (Org(i)%Length-1), -1
              Org(i)%Orientation = 270
 main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
                DO Y = Org_Loc(1,i)%Y, Org_Loc(1,i)%Y-(Org(i)%Width-1), -1
+                 
                    IF (.not. InMatrix(CoOrdinates(Y,X))) then
                      Finished = .false.
                      Exit main270
@@ -2237,6 +2891,10 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
                      Finished = .false.
                      End if
                    END IF
+                 
+                 if (IsParticle(CoOrdinates(Y,X))) p_cnt = p_cnt + 1
+                 if (p_cnt >= Org(i)%Gut%Capacity) Finished = .false.
+                 
                END Do
              END Do main270
 
@@ -2260,6 +2918,10 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
          j = j + 1
          Org_Loc(j,i) = Coordinates(Y,X)
          Matrix(Y,X)  = CellContent(j,i)
+         if (X < 0 .or. X>N_col .or. Y<0 .or. Y>N_row) then 
+            print *, 'Error in populating:','time,i,j,X,Y',time,i,j,X,Y
+            write(File_log, *) 'Error in populating:','time,i,j,X,Y',time,i,j,X,Y
+         Endif
        END Do
        END Do
 
@@ -2277,6 +2939,10 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
          j = j + 1
          Org_Loc(j,i) = Coordinates(Y,X)
          Matrix(Y,X)  = CellContent(j,i)
+         if (X < 0 .or. X>N_col .or. Y<0 .or. Y>N_row) then 
+            print *, 'Error in populating:','time,i,j,X,Y',time,i,j,X,Y
+            write(File_log, *) 'Error in populating:','time,i,j,X,Y',time,i,j,X,Y
+         Endif
        END Do
        END Do
 
@@ -2294,6 +2960,10 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
          j = j + 1
          Org_Loc(j,i) = Coordinates(Y,X)
          Matrix(Y,X)  = CellContent(j,i)
+         if (X < 0 .or. X>N_col .or. Y<0 .or. Y>N_row) then 
+            print *, 'Error in populating:','time,i,j,X,Y',time,i,j,X,Y
+            write(File_log, *) 'Error in populating:','time,i,j,X,Y',time,i,j,X,Y
+         Endif
        END Do
        END Do
 
@@ -2311,19 +2981,29 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
          j = j + 1
          Org_Loc(j,i) = Coordinates(Y,X)
          Matrix(Y,X)  = CellContent(j,i)
+         if (X < 0 .or. X>N_col .or. Y<0 .or. Y>N_row) then 
+            print *, 'Error in populating:','time,i,j,X,Y',time,i,j,X,Y
+            write(File_log, *) 'Error in populating:','time,i,j,X,Y',time,i,j,X,Y
+         Endif
        END Do
        END Do
 
    End Select
    
+   if (j /= Org(i)%BodySize) then
+      print*,'error during population;','time,i, j, Org(i)%BodySize;',time,i, j, Org(i)%BodySize
+      write(File_log,*)'error during population;','time,i, j, Org(i)%BodySize;',time,i, j, Org(i)%BodySize
+   Endif
+   
+   call chk_org('pplate') 
      
 	   Dir_rec(1:Org(i)%length - Org(i)%width,i) = Org(i)%Orientation
 
          if (errChk) then 
          if (time > 0 ) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Pop')
          if (errDetect) then; print *,time, "err after populate"; write(file_log,*)time, "err after populate"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Pop')
          if (errDetect) then; print *,time, "err after populate"; write(file_log,*)time, "err after populate"; end if 
          end if 
          end if 
@@ -2338,11 +3018,11 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
    Use GlobalVariables
    use ieee_arithmetic
    Implicit None
-   Integer :: Particle_ID, Lability
+   integer(kind=4) :: Particle_ID, Lability
    Type(Coordinates) :: Point
-   real :: lab_real
+   real(kind=8) :: lab_real
 
-   integer :: xx, yy
+   integer(kind=4) :: xx, yy
    
      Particle_ID                             = Particle_ID_free(PointerToFreeParticle)
      Particle_ID_free(PointerToFreeParticle) = 0
@@ -2390,11 +3070,8 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
    Use GlobalVariables
    use ieee_arithmetic
    Implicit None
-   Integer :: Particle_ID
-   Type(Coordinates) :: Point
-
-   integer :: xx, yy
-   logical :: IsWater
+   integer(kind=4) :: Particle_ID
+   Type(Coordinates),intent(IN) :: Point
    
      Particle_ID                             = Matrix(Point%Y,Point%X)%Value
      PointerToFreeParticle                   = PointerToFreeParticle + 1
@@ -2425,9 +3102,9 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
        Particle2(Particle_ID)%Loc_Init        = Particle(Particle_ID)%Loc_init
    
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('RmP')
          if (errDetect) then; print *,time, "err after add"; write(file_log,*)time, "err after add"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('RmP')
          if (errDetect) then; print *,time, "err after add"; write(file_log,*)time, "err after add"; end if 
 		 end if 
 		 
@@ -2440,19 +3117,36 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
 
    Use GlobalVariables
    Implicit None
-   Logical :: IsWater
-   Integer :: m, ParticlesToSediment
-   Real    :: URand(ParticlesToSediment)
+   Logical :: IsWater, InMAtrix
+   integer(kind=4) :: m, ParticlesToSediment
+   real(kind=8)    :: URand(ParticlesToSediment)
    Type(Coordinates) :: Point
+   integer(kind=4) :: xx,yy
 
      Call Random_Number (URand)
        DO m = 1, ParticlesToSediment   ! the number of particle to sediment in this time frame
-           Point = CoOrdinates(1, (Int(URand(m)*Real(N_Col))+1))   ! randomly locate the point at the top
+           ! Point = CoOrdinates(1, (Int(URand(m)*Real(N_Col))+1))   ! randomly locate the point at the top
+           Point = CoOrdinates(1, maxloc(swi,dim=1))   !
+             if (.not.inmatrix(point)) then 
+                print*,'error: in particle_sediment'
+                write(file_log,*)'error: in particle_sediment'
+             endif
              if (IsWater(Point)) then
                Call Particle_add(Point)
                Call SedimentDown(Point)
                RainCount = RainCount + 1
              End if
+             
+             do xx=1,n_col
+                do yy=1,n_row
+                    if (matrix(yy,xx)%class==w)cycle
+                    if (matrix(yy,xx)%class==p) then 
+                        swi(xx)=yy
+                        exit
+                    endif
+                enddo
+            enddo
+             
        END Do
        
    End Subroutine Particle_sediment
@@ -2466,12 +3160,12 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
    use ieee_arithmetic
    Implicit None
    Logical :: InMAtrix, IsWater
-   Integer ::  TestWindow
-   Real :: Porosity_local, URand(3)
+   integer(kind=4) ::  TestWindow
+   real(kind=8) :: Porosity_local, URand(3)
    Type(Coordinates) :: Point, PointBelow, PointBelowBelow, PointBeside
    Type(oxygen_conc) :: O2_buff  !! YK
 
-   integer :: xx, yy
+   integer(kind=4) :: xx, yy
    
    ! Initialisations:
        Call Random_Number (URand)
@@ -2482,10 +3176,19 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
 
          PointBelow = CoOrdinates(Point%Y+1,Point%X)
          PointBelowBelow = CoOrdinates(PointBelow%Y+1,PointBelow%X)
+         
+         if (.not.inmatrix(pointbelow)) then 
+            print*,'error: in sedimentDown, pointbelow'
+            write(file_log,*)'error: in sedimentDown, pointbelow'
+         endif
 
          If (.not. IsWater(PointBelow)) then
            Exit                                      ! i.e., no need to move down
-         Else                                        ! check if water below that point ..
+         Else 
+         if (.not.inmatrix(pointbelowbelow)) then 
+            print*,'error: in sedimentDown, pointbelowbelow'
+            write(file_log,*)'error: in sedimentDown, pointbelowbelow'
+         endif                                       ! check if water below that point ..
 
            If (IsWater(PointBelowBelow)) then        ! all clear, move down
              O2_buff = O2(PointBelow%Y,PointBelow%X) 
@@ -2523,7 +3226,8 @@ Particle2(Matrix(PointBELOW%Y,PointBeLOW%X)%Value)%loc_Init = PointBelow
          End if
        End do
 
-     If (URand(1) .gt. 0.3) then                     ! in 30% cases do not shift particles to the side
+     ! If (URand(1) .gt. 0.3) then                     ! in 30% cases do not shift particles to the side
+     If (URand(1) .gt. 1.0) then                     ! in 100% cases do not shift particles to the side
        If (URand(2) .gt. 0.5) then
          PointBeside = CoOrdinates(Point%Y+1, Point%X+1)
        Else
@@ -2547,9 +3251,9 @@ Particle2(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
      End if
 
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Dow')
          if (errDetect) then; print *,time, "err after sedown"; write(file_log,*)time, "err after sedown"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Dow')
          if (errDetect) then; print *,time, "err after sedown"; write(file_log,*)time, "err after sedown"; end if 
 		 end if 
      
@@ -2562,10 +3266,10 @@ Particle2(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
 
    Use GlobalVariables
    Implicit none
-   Integer :: Y,X, DepthToScan
+   integer(kind=4) :: Y,X, DepthToScan
    Logical :: IsPArticle
-   Real    :: Pr
-   Real    :: URand(DepthToScan)
+   real(kind=8)    :: Pr
+   real(kind=8)    :: URand(DepthToScan)
 
    Call Random_Number(URand)
 
@@ -2591,14 +3295,14 @@ Particle2(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
    use ieee_arithmetic
    Implicit none
    Logical :: IsOrganism, IsParticle
-   Integer :: Y_new, Y, X, DummyVariable, PArticle_ID
-   real :: Lab_real_New
+   integer(kind=4) :: Y_new, Y, X, DummyVariable, PArticle_ID
+   real(kind=8) :: Lab_real_New
 
-   integer :: xx, yy
-   integer :: i
+   integer(kind=4) :: xx, yy
+   integer(kind=4) :: i
    
-   real :: m_OM,m_poro, m_ash,tmp_lab(N_Col),tmp_ash(N_Col)
-   integer :: tmp_img(N_Col)
+   real(kind=8) :: m_OM,m_poro, m_ash,tmp_lab(N_Col),tmp_ash(N_Col)
+   integer(kind=4) :: tmp_img(N_Col)
 
    ! check bottom boundary to see if the shift is possible
        Y = N_Row
@@ -2607,22 +3311,22 @@ Particle2(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
          If (IsOrganism(CoOrdinates(Y,X))) Return  ! SHIFT NOT POSSIBLE
        End do
        
-       m_OM = 0.
-       m_poro = 0.
-	   m_ash = 0.
+       m_OM = 0d0
+       m_poro = 0d0
+	   m_ash = 0d0
        tmp_img = 0
-       tmp_lab = 0.
-       tmp_ash = 0.
+       tmp_lab = 0d0
+       tmp_ash = 0d0
 
    ! As there are no boundary problems .. do the shift
        Do X = 1, N_Col
          if (IsParticle(CoOrdinates(Y,X))) then
            tmp_img(X) = 1
-           tmp_lab(X) = Particle(Matrix(Y,X)%Value)%OM%OMact + 1.
-           tmp_ash(X) = Particle2(Matrix(Y,X)%Value)%Ash%Ashact + 1.
+           tmp_lab(X) = Particle(Matrix(Y,X)%Value)%OM%OMact + 1d0
+           tmp_ash(X) = Particle2(Matrix(Y,X)%Value)%Ash%Ashact + 1d0
            m_OM = m_OM + Particle(Matrix(Y,X)%Value)%OM%OMact 
            m_ash = m_ash + Particle2(Matrix(Y,X)%Value)%Ash%Ashact 
-           m_poro = m_poro + 1.
+           m_poro = m_poro + 1d0
            Call Particle_remove(CoOrdinates(Y,X))
          endif
        End do
@@ -2666,9 +3370,9 @@ Particle2(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
          End do          
 
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Cns')
          if (errDetect) then; print *,time, "err after constrain(sub)"; write(file_log,*)time, "err after constrain(sub)"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Cns')
          if (errDetect) then; print *,time, "err after constrain(sub)"; write(file_log,*)time, "err after constrain(sub)"; end if 
          end if 
 		 
@@ -2683,27 +3387,31 @@ Particle2(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
    use ieee_arithmetic
    Implicit None
    Logical :: Finished, DoIt, LoopIt, Stuck
-   Integer :: i, k, m, o, X, Y, Left, Forward, Right, Orientation
-   Integer :: DirPossible(3), StuckCount
-   Integer :: N_Particle, N_Organism, N_Water
-   Integer :: X_start, X_end, X2_start, X2_end, dX, dY, Y_start, Y_end
-   Real  :: DirRandom(3), DirWeights(3), URand(3)
+   integer(kind=4),intent(IN) :: i, Orientation
+   integer(kind=4) :: k, m, o, X, Y, Left, Forward, Right
+   integer(kind=4) :: DirPossible(3), StuckCount
+   integer(kind=4) :: N_Particle, N_Organism, N_Water
+   integer(kind=4) :: X_start, X_end, X2_start, X2_end, dX, dY, Y_start, Y_end
+   real(kind=8)  :: DirRandom(3), DirWeights(3), URand(3)
    Type(CellContent) :: ToMove
-   Type(Coordinates) :: ToMove_loc, Point
+   Type(Coordinates) :: ToMove_loc
+   Type(Coordinates),intent(IN) :: Point
    Type(oxygen_conc) :: O2_buff   !!  YK
-   integer :: X_buff, Y_buff
+   integer(kind=4) :: X_buff, Y_buff
 
-   integer :: xx, yy
-   logical :: IsWater
+   integer(kind=4) :: xx, yy, xxx,yyy
    type(cellcontent) :: blcimg(org(i)%width)
    type(coordinates) :: blcimg_loc(org(i)%width)
+   integer(kind=4) :: blcimg_loc_x(org(i)%width),blcimg_loc_y(org(i)%width)
    
-   integer :: xxg, xxp
+   ! if (CurrentEnergy < 1.) return
 
    Stuck = .false.
    StuckCount = 0
    m = 0
    blcimg_loc = coordinates(0,0)
+   blcimg_loc_x = 0
+   blcimg_loc_y = 0
 
 Main: Do While (m .lt. Org(i)%Width)
 
@@ -2719,7 +3427,14 @@ Main: Do While (m .lt. Org(i)%Width)
 		  do o = 1, org(i)%width
 		    if (block(o)%class == p) then 
 			   blcimg_loc(o)%x = particle(block(o)%value)%loc%x
+			   blcimg_loc_x(o) = particle(block(o)%value)%loc%x
 			   blcimg_loc(o)%y = particle(block(o)%value)%loc%y
+			   blcimg_loc_y(o) = particle(block(o)%value)%loc%y
+               ! if (blcimg_loc(o)%x==0 .or. blcimg_loc(o)%y==0)then 
+               if (blcimg_loc_x(o)==0 .or. blcimg_loc_y(o)==0)then 
+                    print*,'error in making blk img: ',time,block(o)%class,block(o)%value,blcimg_loc_x(o) ,blcimg_loc_y(o)
+                    write(file_log,*)'error in making blk img: ',time,block(o)%class,block(o)%value,blcimg_loc_x(o) ,blcimg_loc_y(o)
+                endif
 			end if 
 		  end do 
 	   end if 
@@ -2936,7 +3651,23 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    End do Main
 
    Org(i)%Can%Move = .false.
+               
+   ! EnergyHistory(i,1) = EnergyHistory(i,1) - 0.01   ! increment the running average
+   ! CurrentEnergy = currentEnergy - 0.01
    
+   if (size(blcimg)/=Org(i)%width .or. size(block)/=Org(i)%width) then 
+      print*,'error during push; block is wierd'
+      write(File_log,*)'error during push; block is wierd'
+   endif
+   
+   do o = 1, org(i)%width
+     if (.not. (blcimg(o)%class==p .or. blcimg(o)%class==w)) then 
+       if (.not.(N_Organism .gt. 0)) then 
+      print*,'error during push; organisms in block ?',blcimg(o)%class, blcimg(o)%value
+      write(File_log,*)'error during push;  organisms in block ?',blcimg(o)%class, blcimg(o)%value
+      endif
+    endif
+   enddo
    
    do o = 1, org(i)%width
      if (blcimg(o)%class/=p) cycle
@@ -2944,7 +3675,23 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
         print *,'error during particle push',blcimg(o)%class,blcimg(o)%value
         write(File_log,*) 'error during particle push',blcimg(o)%class,blcimg(o)%value
      endif
-     if (particle(blcimg(o)%value)%loc%x /= blcimg_loc(o)%x) then 
+     xx = particle(blcimg(o)%value)%loc%x
+     yy = particle(blcimg(o)%value)%loc%y
+     ! xxx = blcimg_loc(o)%x
+     ! yyy = blcimg_loc(o)%y
+     xxx = blcimg_loc_x(o)
+     yyy = blcimg_loc_y(o)
+     if (xx==0 .or. yy==0 .or. xxx==0 .or. yyy==0) then 
+     if (.not. any( Particle_ID_free == blcimg(o)%value)) then 
+     print*,'error in pushing; time, i, o, xx, yy, class, value ',time, i, o, xx, yy,xxx,yyy &
+        ,blcimg(o)%class,blcimg(o)%value
+    print*,Particle_ID_free(:)
+     write(file_log,*)'error in pushing; time, i, o, xx, yy, class, value ',time, i, o, xx, yy,xxx,yyy &
+        ,blcimg(o)%class,blcimg(o)%value
+     stop
+     endif
+     endif
+     if (particle(blcimg(o)%value)%loc%x /= blcimg_loc(o)%x) then  ! particle is pushed 
 		if (particle(blcimg(o)%value)%loc%x  < blcimg_loc(o)%x) then 
 		   Ub(1,i) = Ub(1,i) + 2.5
 		else if (particle(blcimg(o)%value)%loc%x  > blcimg_loc(o)%x) then 
@@ -2962,9 +3709,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    end do 
  
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Psh')
          if (errDetect) then; print *,time, "err after push"; write(file_log,*)time, "err after push"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Psh')
          if (errDetect) then; print *,time, "err after push"; write(file_log,*)time, "err after push"; end if 
          end if 
 
@@ -2979,12 +3726,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    use ieee_arithmetic
    Implicit None
    Logical, Intent(Out) :: Finished
-   Integer, Intent(in) :: X, Y
+   integer(kind=4), Intent(in) :: X, Y
    Type(CellContent), Intent(InOut) :: ToMove
    Type(CellContent)  :: Buffer
-   
-   integer :: xx, yy
-   logical :: IsWater
 
    Select Case (Matrix(Y,X)%Class)
      Case (p)
@@ -3019,15 +3763,14 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    use ieee_arithmetic
    Implicit None
    Logical :: EAt
-   Integer :: i, k, m, n, o, Orientation
-   Integer :: N_Particle, N_Organism, N_Water
-   Real    :: URand(Org(i)%Width)
+   integer(kind=4) :: i, k, m, n, o, Orientation
+   integer(kind=4) :: N_Particle, N_Organism, N_Water
+   real(kind=8)    :: URand(Org(i)%Width)
    Type(Coordinates) :: Point
-   real :: n_real
+   real(kind=8) :: n_real
    Type(oxygen_conc) :: O2_buff   !!  YK
-
-   integer ::  xx, yy
-   logical :: IsWater
+   
+   ! if (CurrentEnergy < 1.) return
 
    If (.not. Org(i)%Can%Ingest) then; Return; End if
 
@@ -3082,6 +3825,10 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
                
                Block(o) = CellContent(w,w)
                IngestionHistory(i,1) = IngestionHistory(i,1) + 1   ! increment the running average
+               
+               
+               ! EnergyHistory(i,1) = EnergyHistory(i,1) - 0.01  ! increment the running average
+               ! CurrentEnergy = currentEnergy - 0.01
 	           
 			   
 	   select case(Org(i)%Orientation)
@@ -3103,9 +3850,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    ENd DO
    
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Igt')
          if (errDetect) then; print *,time, "err after ingest"; write(file_log,*)time, "err after ingest"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Igt')
          if (errDetect) then; print *,time, "err after ingest"; write(file_log,*)time, "err after ingest"; end if 
          end if 
 		 
@@ -3119,15 +3866,14 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Use GlobalVariables
    use ieee_arithmetic
    Implicit None
-   Logical  :: IsWater
-   Integer :: i, j, k, loc, centre
-   real :: biodecay               !!!YK 
-   real :: timeIncrement, ox_buf
+   Logical  :: IsWater, inmatrix
+   integer(kind=4) :: i, j, k, loc, centre
+   real(kind=8) :: biodecay               !!!YK 
+   real(kind=8) :: timeIncrement, ox_buf
    type(coordinates) :: buff_loc
    
-   integer :: xx, yy
-   type(coordinates) :: org_mid
    
+   ! if (CurrentEnergy < 1.) return
    
    biodecay = lability_decayConstant(N_LabilityClasses)*bio_fact*fact
 
@@ -3147,7 +3893,13 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
          If (Guts(j,i)%Class .eq. p) then    ! if it is a particle
            k = k + 1
            loc = centre + (-1  ** k ) * k    ! distribute over the space
-
+             
+             
+         if (.not.inmatrix(tail(loc))) then 
+            print*,'error: in particles_egest'
+            write(file_log,*)'error: in  particles_egest'
+         endif
+             
              If (IsWater(Tail(loc))) then
                ! IF (Particle(Guts(j,i)%Value)%OM%OMact .gt. 0) then
                Matrix(Tail(loc)%Y, Tail(loc)%X) = Guts(j,i)  !! fill the position of water in tail with a particle 
@@ -3175,6 +3927,10 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
                Guts(j,i) = CellContent(w,w)
                EgestHistory(i,1) = EgestHistory(i,1) + 1   ! increment the running average
+               
+               
+               ! EnergyHistory(i,1) = EnergyHistory(i,1) - 0.01   ! increment the running average
+               ! CurrentEnergy = currentEnergy - 0.01
 	   
 	   
 	   select case(Dir_rec(org(i)%length,i))
@@ -3198,9 +3954,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    End if
    
          If (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Egt')
          if (errDetect) then; print *,time, "err after egest"; write(file_log,*)time, "err after egest"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Egt')
          if (errDetect) then; print *,time, "err after egest"; write(file_log,*)time, "err after egest"; end if 
          end if 
 		 
@@ -3212,14 +3968,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
      ! shift gut contents down in the gut ..
 
    Use GlobalVariables
-   use ieee_arithmetic
    Implicit None
-   Integer :: i, j, k
+   integer(kind=4) :: i, j, k
    Type(CellContent) :: Image_Gut(Org(i)%Gut%Capacity)
-   type(oxygen_conc) :: O2_buff(Org(i)%Gut%Capacity)          !!! YK
-
-   integer :: xx, yy
-   logical :: IsWater
    
    ! make an image of the gut contents
        DO j = 1, Org(i)%Gut%Capacity
@@ -3241,13 +3992,91 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
        End do
        
          if (errChk) then 
-         call Make_matrix_chk()
+         call Make_matrix_chk('Pss')
          if (errDetect) then; print *,time, "err after peristalsis"; write(file_log,*)time, "err after peristalsis"; end if 
-         call Matrix_err_chk()
+         call Matrix_err_chk('Pss')
          if (errDetect) then; print *,time, "err after peristalsis"; write(file_log,*)time, "err after peristalsis"; end if 
          end if 
 		 
    End Subroutine Organism_peristalsis
+
+   ! ********************************
+
+   Subroutine disperse()
+     ! disperse sediment particles when local porosity approaches 0 ..
+
+   Use GlobalVariables
+   Implicit None
+   integer(kind=4) :: xx,yy, xx_l,xx_r,xx_ll, xx_rr
+   real(kind=8) :: porosity_local
+   real(kind=8) :: poro_tmp
+   integer(kind=4) :: poro_shift = 2  
+   type (oxygen_conc) :: o2_buf
+   
+   do yy=1,n_row
+   do xx=1,n_col
+        poro_tmp = porosity_local(coordinates(yy,xx),poro_shift)  ! calc local porosity from x - shift to x + shift 
+        if (poro_tmp == 0.05) then 
+            xx_l = xx - poro_shift
+            xx_ll = xx_l - 1
+            xx_r = xx + poro_shift
+            xx_rr = xx_r + 1
+            if (xx_l < 1) xx_l = xx_l + n_col
+            if (xx_r > n_col) xx_r = xx_r - n_col
+            if (xx_ll < 1) xx_ll = xx_ll + n_col
+            if (xx_rr > n_col) xx_rr = xx_rr - n_col
+            
+            if (matrix(yy,xx_ll)%class==w .and. &
+                matrix(yy,xx_l)%class==p ) then
+                ! recording a new x in particle 
+                particle(matrix(yy,xx_l)%value)%loc%x &
+                    = xx_ll
+                particle2(matrix(yy,xx_l)%value)%loc%x &
+                    = xx_ll
+                ! matrix content is exchanged 
+                matrix(yy,xx_ll)%class = p
+                matrix(yy,xx_ll)%value &
+                    = matrix(yy,xx_l)%value
+                matrix(yy,xx_l)%class = w
+                matrix(yy,xx_l)%value = 0
+                ! oxygen conc. exchange
+                o2_buf = o2(yy,xx_ll)
+                o2(yy,xx_ll)  &
+                    = o2(yy,xx_l)
+                o2(yy,xx_l) = o2_buf
+            endif
+            if (matrix(yy,xx_rr)%class==w .and. &
+                matrix(yy,xx_r)%class==p ) then
+                ! recording a new x in particle 
+                particle(matrix(yy,xx_r)%value)%loc%x &
+                    = xx_rr
+                particle2(matrix(yy,xx_r)%value)%loc%x &
+                    = xx_rr
+                ! matrix content is exchanged 
+                matrix(yy,xx_rr)%class = p
+                matrix(yy,xx_rr)%value &
+                    = matrix(yy,xx_r)%value
+                matrix(yy,xx_r)%class = w
+                matrix(yy,xx_r)%value = 0
+                ! oxygen conc. exchange
+                o2_buf = o2(yy,xx_rr)
+                o2(yy,xx_rr)  &
+                    = o2(yy,xx_r)
+                o2(yy,xx_r) = o2_buf
+            endif
+        endif
+    enddo
+    enddo
+       
+         if (errChk) then 
+         call Make_matrix_chk('Dsp')
+         if (errDetect) then; print *,time, "err after dispersion"; write(file_log,*)time, "err after dispersion"; end if 
+         call Matrix_err_chk('Dsp')
+         if (errDetect) then; print *,time, "err after dispersion"; write(file_log,*)time, "err after dispersion"; end if 
+         end if 
+		 
+   End Subroutine disperse
+
 
    ! ***********************************************************************
 
@@ -3259,8 +4088,8 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Implicit None
 
    Call Output_stats()
-   Call Output_Graphic()
-     Call Output_Ascii() !  if ascii data desired
+   ! Call Output_Graphic()
+     ! Call Output_Ascii() !  if ascii data desired
      Call Output_txtImg() 
      Call Output_O2txtImg() 
 
@@ -3274,10 +4103,10 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Use GlobalVariables
    Implicit None
    Logical :: IsWater, IsPArticle, IsOrganism
-   Integer :: X, Y, Code
+   integer(kind=4) :: X, Y, Code
    Character*21 AsciiFile, AsciiFile2, numtemp
-   integer :: tmppp
-   integer :: txtimg(N_Col)
+   integer(kind=4) :: tmppp
+   integer(kind=4) :: txtimg(N_Col)
    
    tmppp = 1
     
@@ -3323,11 +4152,11 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Use GlobalVariables
    Implicit None
    Logical :: IsPArticle, IsOrganism
-   Integer :: X, Y
+   integer(kind=4) :: X, Y
    Character*21 numtemp
-   integer :: txtimg(N_Col), particle_ID
-   real :: Lab_real, txtimg_real(N_col)
-   integer :: i , j
+   integer(kind=4) :: txtimg(N_Col), particle_ID
+   real(kind=8) :: Lab_real, txtimg_real(N_col)
+   integer(kind=4) :: i , j
    ! logical :: rec_detail = .false.
    logical :: rec_detail = .true.
     
@@ -3437,14 +4266,16 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    ! *********************************************************
 
-   SubRoutine Make_matrix_chk()
+   SubRoutine Make_matrix_chk(chr)
    
    use GlobalVariables
    implicit none 
-   integer :: i, j, xx, yy
-   integer :: txtimg(N_Col)
+   integer(kind=4) :: i, j, xx, yy
+   integer(kind=4) :: txtimg(N_Col)
+   character*3, intent(IN) :: chr
    
-   
+   if (allocated(matrix_chk)) deallocate(matrix_chk)
+   allocate(matrix_chk(N_row,N_col))
    matrix_chk = cellcontent(0,0)  ! all water
    errDetect = .false.
    
@@ -3455,12 +4286,14 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 	  if (particle(i)%loc%x /= particle2(i)%loc%x .or.particle(i)%loc%y /= particle2(i)%loc%y &
 	    .or. particle(i)%loc_init%x /= particle2(i)%loc_init%x  &
 		.or. particle(i)%loc_init%y /= particle2(i)%loc_init%y) then 
-	    print*, "error: inconsistency between particle 1 & 2: time,cell#, loc1, loc2,locint1,locint2 ="  &
+	    print*, "error making matrix_chk from "//chr// &
+          ": inconsistency between particle 1 & 2: time,cell#, loc1, loc2,locint1,locint2 ="  &
 		  ,time,i,particle(i)%loc,particle(i)%loc%x,particle(i)%loc,particle(i)%loc%y,  &
 		  particle2(i)%loc,particle(i)%loc%x,particle2(i)%loc,particle(i)%loc%y,  &
 		  particle(i)%loc,particle(i)%loc_init%x,particle(i)%loc,particle(i)%loc_init%y,  &
 		  particle2(i)%loc,particle(i)%loc_init%x,particle2(i)%loc,particle(i)%loc_init%y 
-	    write(file_log,*) "error: inconsistency between particle 1 & 2: time,cell#, loc1, loc2,locint1,locint2 ="  &
+	    write(file_log,*) "error making matrix_chk from "//chr//  &
+          ": inconsistency between particle 1 & 2: time,cell#, loc1, loc2,locint1,locint2 ="  &
 		  ,time,i,particle(i)%loc,particle(i)%loc%x,particle(i)%loc,particle(i)%loc%y,  &
 		  particle2(i)%loc,particle(i)%loc%x,particle2(i)%loc,particle(i)%loc%y,  &
 		  particle(i)%loc,particle(i)%loc_init%x,particle(i)%loc,particle(i)%loc_init%y,  &
@@ -3470,10 +4303,24 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    do i = 1, N_ind
       do j = 1, Org(i)%bodySize
-        ! print *, Org_loc(j,i)%Y,Org_loc(j,i)%X
+        if (time==0) print *, Org_loc(j,i)%Y,Org_loc(j,i)%X, j, Org(i)%bodysize
+        xx = Org_loc(j,i)%X
+        yy = Org_loc(j,i)%Y
+        if (yy == 0 .or. xx ==0) then
+          write(file_log,*) time, 'error making matrix_chk from '//chr//  &
+             ': Org_loc records 0 in x or y within Org(i)%bodysize'  &
+               ,'i, j, Org_loc(j,i)%Y, Org_loc(j,i)%X, Org(i)%bodySize:'  &
+               ,i, j, yy, xx, Org(i)%bodySize
+          write(file_log,*) Org_loc(:,i)%Y
+          write(file_log,*) Org_loc(:,i)%X
+          errDetect = .true.
+        endif 
+        if (Org_loc(j,i)%Y==0 .or. Org_loc(j,i)%X==0) print *,Org_loc(j,i)%Y,Org_loc(j,i)%X,j, Org(i)%bodysize, i,chr
         if (matrix_chk(Org_loc(j,i)%Y,Org_loc(j,i)%X)%class == p) then  !!  if particle (not in guts) exists
-          print *, time, "error in (making mtx_chk): particle exist where organism",i," exist at", Org_loc(j,i)%Y,Org_loc(j,i)%X
-          write(file_log,*) time, "error in (making mtx_chk): particle exist where organism",i," exist at",& 
+          print *, time, "error making matrix_chk from "//chr//  &
+            ": particle exist where organism",i," exist at", Org_loc(j,i)%Y,Org_loc(j,i)%X
+          write(file_log,*) time, "error making matrix_chk from "//chr//  &
+            ": particle exist where organism",i," exist at",& 
 		                    Org_loc(j,i)%Y,Org_loc(j,i)%X
           errDetect = .true.
         end if 
@@ -3486,23 +4333,26 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
  ! ****************************************************************************************************
 
-   SubRoutine Matrix_err_chk()
+   SubRoutine Matrix_err_chk(chr)
    
    use GlobalVariables
    implicit none 
-   integer :: xx, yy
+   integer(kind=4) :: xx, yy
+   character*3, intent(IN) :: chr
    
    errDetect = .false.
    
    do yy = 1, N_row
      do xx = 1, N_col
        if (matrix(yy,xx)%class /= matrix_chk(yy,xx)%class) then 
-            write(file_log,*) time, 'error in water/organism assignment in matrix (err_chk_mtx)', yy, xx, & 
+            write(file_log,*) time, 'error in water/organism assignment in matrix (err_chk_mtx) from ' & 
+            //trim(adjustl(chr))//':', yy, xx, & 
                 matrix_chk(yy,xx)%class, matrix(yy,xx)%class, matrix_chk(yy,xx)%value, matrix(yy,xx)%value
             errDetect = .true.
        else 
          if (matrix(yy,xx)%value /= matrix_chk(yy,xx)%value) then
-           write(file_log,*) time, '(err_chk_mtx) Id is different at', yy, xx, & 
+           write(file_log,*) time, '(err_chk_mtx) from ' & 
+            //trim(adjustl(chr))//': Id is different at', yy, xx, & 
                 matrix_chk(yy,xx)%class, matrix(yy,xx)%class, matrix_chk(yy,xx)%value, matrix(yy,xx)%value
            errDetect = .true.
          end if 
@@ -3518,8 +4368,8 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    use GlobalVariables
    implicit none 
-   integer :: i, j, xx, yy
-   integer :: txtimg(N_Col)
+   integer(kind=4) :: i, j, xx, yy
+   integer(kind=4) :: txtimg(N_Col)
    Character*21 numtemp
    
    
@@ -3555,9 +4405,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    use GlobalVariables
    implicit none 
-   integer :: y, x
-   real :: lab_real_new
-   real :: aaa
+   integer(kind=4) :: y, x
+   real(kind=8) :: lab_real_new
+   real(kind=8) :: aaa
    
    do y = 1, n_row
      do x = 1, n_col
@@ -3575,10 +4425,10 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    use GlobalVariables
    implicit none 
-   integer :: k, o, i
-   real :: resp_rate, lab_max, ox_resp, TimeIncrement
-   real :: fact_law1, fact_law2
-   real :: merge2
+   integer(kind=4) :: k, o, i
+   real(kind=8) :: resp_rate, lab_max, ox_resp, TimeIncrement
+   real(kind=8) :: fact_law1, fact_law2
+   real(kind=8) :: merge2
    
    
    select case (trim(adjustl(O2ratelaw)))
@@ -3608,7 +4458,8 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    if (lab_max <= 0) return
    
-   resp_rate = lab_max*Lability_decayConstant(N_LabilityClasses)*fact*bio_fact  ! calc wt% loss/yr once oxygen conc. is given
+   ! resp_rate = lab_max*Lability_decayConstant(N_LabilityClasses)*fact*bio_fact  ! calc wt% loss/yr once oxygen conc. is given
+   resp_rate = lab_max*RespCnst(i) ! calc wt% loss/yr once oxygen conc. is given
    
    ! resp_rate = resp_rate*1e-1   !! if decomposition rate is increased
    
@@ -3620,7 +4471,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
        resp_rate   & 
        *merge(1d0/mo2,1d0, fact_law1 == 1d0 .and.O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen <= mo2/iox)
      ox_resp = ox_resp + &
-       resp_rate*merge2(1.,O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen   &
+       resp_rate*merge2(1.d0,O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen   &
        ,(fact_law1 == 0d0 .and. fact_law2 == 0d0).or.   &
        (fact_law1==1d0 .and.O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen > mo2/iox))*TimeScale/365.*iox/OM_uni
    end do 
@@ -3639,14 +4490,16 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    use GlobalVariables
    implicit none 
-   integer :: xx, yy, k, i
-   integer :: xg, xp, yp, yg
-   real :: tmpV, tmpU
-   real :: fact_law1, fact_law2
-   real :: width_3d
-   real :: merge2
+   integer(kind=4) :: xx, yy, k, i
+   integer(kind=4) :: xg, xp, yp, yg
+   real(kind=8) :: tmpV, tmpU
+   real(kind=8) :: fact_law1, fact_law2
+   ! real(kind=8) :: width_3d
+   real(kind=8) :: merge2
 
-  width_3d = 2.5d0   
+  ! width_3d = 2.5d0   
+   
+   if (.not.oxygen_ON) y_int = 1
    
    select case (trim(adjustl(O2ratelaw)))
      case('linear','LINEAR','Linear')
@@ -3690,7 +4543,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    do yy = 1, n_row
      do xx = 1, n_col
        TotOrgDecay = TotOrgDecay +   &
-        O2(yy,xx)%Oxygen_use*merge2(1.,O2(yy,xx)%oxygen   &
+        O2(yy,xx)%Oxygen_use*merge2(1.d0,O2(yy,xx)%oxygen   &
        ,(fact_law1 == 0d0 .and. fact_law2 == 0d0).or.   &
        (fact_law1==1d0 .and. O2(yy,xx)%oxygen > mo2/iox))  &
           *iox*1e-3*(width_3d*pixelSize*pixelsize)
@@ -3703,12 +4556,16 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    do k = 1, Org(i)%headSize
    if (matrix(Org_loc(k,i)%Y,Org_loc(k,i)%X)%class/=i) print *, "error in calc. flux"
    TotResp = TotResp +  &   
-       O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen_use*merge2(1.,O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen   &
+       O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen_use*merge2(1.d0,O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen   &
        ,(fact_law1 == 0d0 .and. fact_law2 == 0d0).or.   &
        (fact_law1==1d0 .and. O2(Org_loc(k,i)%Y,Org_loc(k,i)%X)%oxygen > mo2/iox))  &
        *iox   &
          *1e-3*width_3d*(pixelSize)*(PixelSize)
    end do 
+   
+   ! EnergyHistory(i,1) = EnergyHistory(i,1) + TotResp*timescale/365.*5d6   ! increment the running average
+   ! CurrentEnergy = currentEnergy + TotResp*timescale/365.*5d6
+   
    end do
    end if 
    
@@ -3721,27 +4578,27 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    TotOrgDecay = TotOrgDecay /width_3d/(n_col*pixelSize) 
    
    write(File_flux,*) Time*Timescale, TotO2dif,TotO2Adv, TotAbio, TotResp, TotOrgDecay, (totO2-pretotO2)/timescale*365.0
-   write(File_flux_txt,*) Time*Timescale, TotO2dif,TotO2Adv, TotAbio, TotResp, TotOrgDecay, (totO2-pretotO2)/timescale*365.0
-   write(*,*) "FLUXES --- :", TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, (totO2-pretotO2)/timescale*365.0
+   write(*,*) "FLUXES_v1 --- :", TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, (totO2-pretotO2)/timescale*365.0
    
    
    End Subroutine fluxes
    
    !****************************************
    
-   subroutine Gnuplot_flux()
+   subroutine Gnuplot_flux(chr)
    
    use GlobalVariables
    implicit none 
+   character*1, intent(IN) :: chr
    
-   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/biot-flx.plt', status = 'unknown')
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/biot-flx'//trim(adjustl(chr))//'.plt', status = 'unknown')
    write(File_txtImg,*)'set pm3d map  corners2color max'
    write(File_txtImg,*)'set size square'
    write(File_txtImg,*)'set border lw 3'
    write(File_txtImg,*)'set size ratio 0.24'
    write(File_txtImg,*)"set tics font 'arial, 35'"
    write(File_txtImg,*)'set palette rgbformula 22,13,-31'
-   write(File_txtImg,*)"r1='"//trim(adjustl(today))//'/flux.OUT'//"'"
+   write(File_txtImg,*)"r1='"//trim(adjustl(today))//'/flux'//trim(adjustl(chr))//'.OUT'//"'"
    write(File_txtImg,*)'unset colorbox'
    write(File_txtImg,*)'set key outside horizontal bottom'
    write(File_txtImg,*)"plot r1 u ($1/365.0):($6*1e6) title 'TotOrgDecay' w l lw 1, \"
@@ -3762,19 +4619,23 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    !****************************************
    
-   subroutine Gnuplot_diet()
+   subroutine Gnuplot_diet(i)
    
    use GlobalVariables
    implicit none 
+   character*36 dumID
+   integer(kind=4), intent(in) :: i
    
-   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/biot-diet.plt', status = 'unknown')
+   write(DumID,'(i3.3)') PopLogID(i)
+   
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/biot-diet-'//trim(adjustl(dumID))//'.plt', status = 'unknown')
    write(File_txtImg,*)'set pm3d map  corners2color max'
    write(File_txtImg,*)'set size square'
    write(File_txtImg,*)'set border lw 3'
    write(File_txtImg,*)'set size ratio 0.24'
    write(File_txtImg,*)"set tics font 'arial, 35'"
    write(File_txtImg,*)'set palette rgbformula 22,13,-31'
-   write(File_txtImg,*)"r1='"//trim(adjustl(today))//'/Diet.OUT'//"'"
+   write(File_txtImg,*)"r1='"//trim(adjustl(today))//'/Diet-'//trim(adjustl(dumID))//'.OUT'//"'"
    write(File_txtImg,*)'unset colorbox'
    write(File_txtImg,*)'set key outside horizontal bottom'
    write(File_txtImg,*)'# Time*Timescale,i,MovementRate, IngestRate, EgestRate, RespRate_ave,Org(i)%Gut%Content' &
@@ -3783,10 +4644,11 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    write(File_txtImg,*)"  r1 u ($1/365.0):($4/$9) title 'Rel. Ingest Rate' w l lw 1, \"
    write(File_txtImg,*)"  r1 u ($1/365.0):($5/$9) title 'Rel. Egest Rate' w l lw 0.8 dt (10,5), \"
    write(File_txtImg,*)"  r1 u ($1/365.0):($6) title 'Resp. Rate' w l lw 1, \"
-   write(File_txtImg,*)"  r1 u ($1/365.0):($7/$10) title 'Fullness' w l lw 1"
+   write(File_txtImg,*)"  r1 u ($1/365.0):($7/$10) title 'Fullness' w l lw 1, \"
+   write(File_txtImg,*)"  r1 u ($1/365.0):($11) title 'Energy' w l lw 1 "
    write(File_txtImg,*)'set terminal emf enhanced "Arial, 25"'
    write(File_txtImg,*)'set terminal emf enhanced "Arial, 22.4"'
-   write(File_txtImg,*)'set output "biot-diet.emf"'
+   write(File_txtImg,*)'set output "biot-diet-'//trim(adjustl(dumID))//'.emf"'
    write(File_txtImg,*)'replot'
    write(File_txtImg,*)'set output'
    write(File_txtImg,*)'set terminal wxt'
@@ -3846,9 +4708,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    use globalvariables
    implicit none 
    type(coordinates) :: org_mid
-   integer :: i, startj, endj, j
-   integer :: maxx, maxy, minx, miny
-   integer :: org_copy(endj - startj + 1)
+   integer(kind=4) :: i, startj, endj, j
+   integer(kind=4) :: maxx, maxy, minx, miny
+   integer(kind=4) :: org_copy(endj - startj + 1)
    
    maxx = maxval(org_loc(startj:endj,i)%x)
    maxy = maxval(org_loc(startj:endj,i)%y)
@@ -3882,6 +4744,279 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    end subroutine org_midloc
    
    ! *************************************************************
+   
+   subroutine make_trans()
+   
+   use globalvariables
+   implicit none 
+   integer(kind=4) :: xx, yy, j, k, particle_id, y0
+   real(kind=8),allocatable :: dz(:)    ! 1D z grid to be read
+   real(kind=8) :: prob0, probEnd, probchk, dumreal, probchk2   
+   real(kind=8),allocatable :: trans(:,:) ! transition matrix units in /yr (?)
+   real(kind=8),allocatable :: part_num_t(:)
+   integer(kind=4) :: layer0_max, layer0_min, layerEnd_max, layerEnd_min, part_num(n_row), nz
+   Character*21 numtemp
+   logical :: isparticle
+   real(kind=8) :: tol = 1d-6
+   integer(kind=4) :: transx(n_row, n_col)
+   integer(kind=4) :: transy(n_row, n_col)
+   character*256 gridfile
+   real(kind=8) :: part_num_tmp
+   
+   write(numtemp,'(i10.1)') Time
+   write(gridfile,*) '1dgrid_turbo.txt'
+   ! write(gridfile,*) '1dgrid.txt'
+   gridfile=trim(adjustl(gridfile))
+   
+   if (N_ind/=0) then 
+        print*, 'Error: Org exists', N_ind
+        write(File_log,*) 'Error: Org exists', N_ind
+        stop
+    endif
+    
+    transx = 0
+    transy = 0
+    
+    if (.false.) then 
+    do yy = 1, n_row
+        do xx = 1, n_col
+            if (isparticle(coordinates(yy,xx))) then 
+                particle_id = matrix(yy,xx)%value 
+                if (particle(particle_id)%loc_init%y<1 .or. &
+                    particle(particle_id)%loc_init%y>N_row .or.  &
+                    particle(particle_id)%loc_init%x<1 .or. &
+                    particle(particle_id)%loc_init%x>N_col) then 
+                    print*,'error in making_trans at ',particle(particle_id)%loc_init%y, &
+                        particle(particle_id)%loc_init%x,particle_id
+                    write(file_log,*)'error in making_trans at ',particle(particle_id)%loc_init%y, &
+                        particle(particle_id)%loc_init%x,particle_id
+                    stop
+                endif
+                transx(particle(particle_id)%loc_init%y, particle(particle_id)%loc_init%x) = xx  
+                ! matrix denoting the x point to move at matrix point of original location
+                transy(particle(particle_id)%loc_init%y, particle(particle_id)%loc_init%x) = yy  
+                ! matrix denoting the y point to move at matrix point of original location
+            endif
+        enddo
+    enddo
+    
+    ! print*,transx 
+    ! print*,''
+    ! print*,transy 
+    ! stop
+    
+   OPEN(unit = File_temp, File = trim(adjustl(today))//'/data/trans_x-'         &
+                        //trim(adjustl(numtemp))//'.txt', status = 'unknown')
+     
+      do yy = 1,n_row
+        write(file_temp,*) (transx(yy,xx),xx=1,n_col)
+      enddo 
+   close(File_temp)
+    
+   OPEN(unit = File_temp, File = trim(adjustl(today))//'/data/trans_y-'         &
+                        //trim(adjustl(numtemp))//'.txt', status = 'unknown')
+     
+      do yy = 1,n_row
+        write(file_temp,*) (transy(yy,xx),xx=1,n_col)
+      enddo 
+   close(File_temp)
+   
+   endif
+   
+   if (allocated(dz)) deallocate(dz)
+   if (allocated(trans)) deallocate(trans)
+   nz = 0
+   
+   open(unit=File_temp, file=gridfile,action='read',status='old')
+   do 
+      read(file_temp,*,end=100) dumreal
+      nz = nz+1
+   enddo 
+ 100  close(File_temp)
+   
+   ! nz = 100
+   
+   print*,nz
+   ! stop
+   allocate(dz(nz),trans(nz,nz),part_num_t(nz))
+   
+   open(unit=File_temp, file=gridfile,action='read',status='old')
+   do yy = 1,nz
+      read(file_temp,*) dz(yy)
+   enddo 
+   close(File_temp)
+   
+   !                   -----------  layer0_min
+   !          y_int ----------
+   !                   -----------  layer0_max
+   
+   !                   -----------  layerEnd_min
+   !          y ----------
+   !                   -----------  layerEnd_max
+   
+   
+   y0 = n_row  ! highest vertical point of original and current sediment particles
+   part_num = 0 
+   do yy = 1, n_row
+     do xx = 1, n_col
+       if (isparticle(coordinates(yy,xx))) then
+          part_num(yy) = part_num(yy)+1
+          particle_id = matrix(yy,xx)%value 
+          ! if (particle(particle_id)%loc_init%y /=particle(particle_id)%loc%y) then 
+              if (particle(particle_id)%loc_init%y < y0) y0 = particle(particle_id)%loc_init%y 
+              if (particle(particle_id)%loc%y < y0) y0 = particle(particle_id)%loc%y 
+          ! endif
+          ! exit
+       endif
+     ! if (y0/=0) exit
+     enddo
+   enddo
+   trans = 0d0
+   part_num_t = 0d0
+   do yy = 1, n_row
+        do xx = 1, n_col
+            if (isparticle(coordinates(yy,xx))) then
+                particle_id = matrix(yy,xx)%value 
+                if ((particle(particle_id)%loc_init%y - y0)==0) then 
+                    layer0_min = 1
+                    layer0_max = 1
+                    do j = 1, nz-1
+                        if ( ( real((particle(particle_id)%loc_init%y - y0 + 1),kind=8)*pixelsize - sum(dz(:j)) ) &
+                            *( real((particle(particle_id)%loc_init%y - y0 + 1),kind=8)*pixelsize - sum(dz(:j+1)) ) <= 0d0 ) then 
+                            layer0_max = j+1
+                            exit
+                        endif
+                    enddo 
+                else 
+                    layer0_min = 1
+                    layer0_max = 1
+                    do j = 1, nz-1
+                        if ( ( real((particle(particle_id)%loc_init%y - y0),kind=8)*pixelsize - sum(dz(:j)) ) &
+                            *( real((particle(particle_id)%loc_init%y - y0),kind=8)*pixelsize - sum(dz(:j+1)) ) <= 0d0 ) then 
+                            ! print*,y0,particle(particle_id)%loc_init%y,j &
+                                ! ,real((particle(particle_id)%loc_init%y - y0),kind=8)*pixelsize ,sum(dz(:j)),sum(dz(:j+1))
+                            layer0_min = j + 1
+                            exit
+                        endif
+                    enddo 
+                    do j = 1, nz-1
+                        if ( ( real((particle(particle_id)%loc_init%y - y0+1),kind=8)*pixelsize - sum(dz(:j)) ) &
+                            *( real((particle(particle_id)%loc_init%y - y0+1),kind=8)*pixelsize - sum(dz(:j+1)) ) <= 0d0 ) then 
+                            layer0_max = j + 1
+                            exit
+                        endif
+                    enddo 
+                endif   
+          
+                if ((particle(particle_id)%loc%y - y0)==0) then 
+                    layerEnd_min = 1
+                    layerEnd_max = 1
+                    do j = 1, nz-1
+                        if ( ( real((particle(particle_id)%loc%y - y0 + 1),kind=8)*pixelsize - sum(dz(:j)) ) &
+                            *( real((particle(particle_id)%loc%y - y0 + 1),kind=8)*pixelsize - sum(dz(:j+1)) ) <= 0d0 ) then 
+                            layerEnd_max = j+1
+                            exit
+                        endif
+                    enddo 
+                else 
+                    layerEnd_min = 1
+                    layerEnd_max = 1
+                    do j = 1, nz-1
+                        if ( ( real((particle(particle_id)%loc%y - y0),kind=8)*pixelsize - sum(dz(:j)) ) &
+                            *( real((particle(particle_id)%loc%y - y0),kind=8)*pixelsize - sum(dz(:j+1)) ) <= 0d0 ) then 
+                            layerEnd_min = j + 1
+                            exit
+                        endif
+                    enddo 
+                    do j = 1, nz-1
+                        if ( ( real((particle(particle_id)%loc%y - y0+1),kind=8)*pixelsize - sum(dz(:j)) ) &
+                            *( real((particle(particle_id)%loc%y - y0+1),kind=8)*pixelsize - sum(dz(:j+1)) ) <= 0d0 ) then 
+                            layerEnd_max = j + 1
+                            exit
+                        endif
+                    enddo 
+                endif   
+                
+                print*, y0, pixelsize,particle(particle_id)%loc_init%y, particle(particle_id)%loc%y, layer0_min, layer0_max  &
+                    , layerEnd_min, layerEnd_max
+          
+                probchk = 0d0
+                probchk2 = 0d0
+          
+                do j = layer0_min, layer0_max
+                    if (j==1) then 
+                        prob0 = min(sum(dz(:j)),real((particle(particle_id)%loc_init%y - y0+1),kind=8)*pixelsize )      &
+                            -max(0d0, real((particle(particle_id)%loc_init%y - y0),kind=8)*pixelsize)
+                    else 
+                        prob0 = min(sum(dz(:j)),real((particle(particle_id)%loc_init%y - y0+1),kind=8)*pixelsize )      &
+                            -max(sum(dz(:j-1)), real((particle(particle_id)%loc_init%y - y0),kind=8)*pixelsize)
+                    endif
+              
+                    prob0 = prob0/pixelsize
+                    
+                    print*, j, prob0
+              
+                    probchk2 = probchk2 + prob0
+                        
+                    part_num_t(j) = part_num_t(j) + prob0
+                                        
+                    do k = layerEnd_min, layerEnd_max
+              
+                        if (k==1) then 
+                            probEnd = min(sum(dz(:k)),real((particle(particle_id)%loc%y - y0+1),kind=8)*pixelsize )      &
+                                -max(0d0, real((particle(particle_id)%loc%y - y0),kind=8)*pixelsize)
+                        else 
+                            probEnd = min(sum(dz(:k)),(particle(particle_id)%loc%y - y0+1)*pixelsize )      &
+                                -max(sum(dz(:k-1)), real((particle(particle_id)%loc%y - y0),kind=8)*pixelsize)
+                        endif
+                        
+                        probEnd = probEnd/pixelsize
+              
+                        probchk = probchk + prob0*probEnd
+              
+                        ! trans(j,k) = trans(j,k) + prob0*probEnd/part_num(yy)
+                        ! trans(j,j) = trans(j,j) - prob0*probEnd/part_num(yy)
+                        trans(j,k) = trans(j,k) + prob0*probEnd
+                        trans(j,j) = trans(j,j) - prob0*probEnd
+                    enddo
+                enddo 
+          
+                ! if (nint(probchk)/=1) then 
+                if (abs(probchk-1d0)> tol) then 
+                    print*,'error in making transition matrix', probchk, xx, yy
+                    write(File_log,*) 'error in making transition matrix', probchk, xx, yy
+                    stop
+                endif 
+                if (abs(probchk2-1d0)> tol) then 
+                    print*,'error2 in making transition matrix', probchk2, xx, yy
+                    write(File_log,*) 'error2 in making transition matrix', probchk2, xx, yy
+                    stop
+                endif
+            endif
+        enddo 
+    enddo 
+    
+   OPEN(unit = File_temp, File = trim(adjustl(today))//'/data/transmtx-'         &
+                        //trim(adjustl(numtemp))//'.txt', status = 'unknown')
+     
+      do yy = 1,nz
+        if (part_num_t(yy)==0d0) then
+            part_num_tmp = 1d10
+        else 
+            part_num_tmp = part_num_t(yy)
+        endif
+        ! part_num_tmp = part_num_t(yy)
+        ! write(file_temp,*) (trans(yy,xx)/(Time*Timescale/365d0),xx=1,nz)
+        ! write(file_temp,*) (trans(yy,xx)/(Time*Timescale/365d0)/part_num_tmp,xx=1,nz)
+        write(file_temp,*) (trans(yy,xx)/part_num_tmp,xx=1,nz)
+      enddo 
+   close(File_temp)
+   
+   ! stop
+   
+   end subroutine make_trans
+   
+   ! *************************************************************
 
    Subroutine Output_stats()
 
@@ -3892,57 +5027,57 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Implicit None
    Logical :: IsParticle, InSediments, IfNAN
 
-   Integer :: X, Y, Window, N_Samples, j, k, m, n
-   Integer :: part_rowsum, Particle_ID
+   integer(kind=4) :: X, Y, Window, N_Samples, j, k, m, n
+   integer(kind=4) :: part_rowsum, Particle_ID
 
-   Real :: Porosity_local, por_mean, por_stderr, por_rowsum
-   Real :: URand(2), Depth, Db, minvalue
-   Real :: Activity_New, Activity_mean, act_rowsum
+   real(kind=8) :: Porosity_local, por_mean, por_stderr, por_rowsum
+   real(kind=8) :: URand(2), Depth, Db, minvalue
+   real(kind=8) :: Activity_New, Activity_mean, act_rowsum
 
    Character*8 :: Timevalue
 
-   Integer :: lab_rowsum(N_LabilityClasses), Particle_Lability, P_count
-   real :: Lab_real_New
-   real :: Sum_Dy, dy, Sum_dx, dx, SUM_RMS, RMS, DEV_X, DEV_Y
-   real :: Sum_Dy2(N_Row), Sum_dx2(N_Row), SUM_RMS2(N_Row), RMS2(N_Row), DEV_X2(N_Row), DEV_Y2(N_Row), P_count2(N_Row)
+   integer(kind=4) :: lab_rowsum(N_LabilityClasses), Particle_Lability, P_count
+   real(kind=8) :: Lab_real_New
+   real(kind=8) :: Sum_Dy, dy, Sum_dx, dx, SUM_RMS, RMS, DEV_X, DEV_Y
+   real(kind=8) :: Sum_Dy2(N_Row), Sum_dx2(N_Row), SUM_RMS2(N_Row), RMS2(N_Row), DEV_X2(N_Row), DEV_Y2(N_Row), P_count2(N_Row)
    
-   real :: Sum_Dy3(N_Row), Sum_dx3(N_Row),DEV_X3(N_Row), DEV_Y3(N_Row)     !! YK added
+   real(kind=8) :: Sum_Dy3(N_Row), Sum_dx3(N_Row),DEV_X3(N_Row), DEV_Y3(N_Row)     !! YK added
    
-   Real :: Depth_vector(N_Row), Activity_vector(N_Row), weight_vector(N_Row)
-   Real :: AMACH
-   Real :: Db_lability, Lability_vector(N_Row, N_LabilityClasses)
+   real(kind=8) :: Depth_vector(N_Row), Activity_vector(N_Row), weight_vector(N_Row)
+   real(kind=8) :: AMACH
+   real(kind=8) :: Db_lability, Lability_vector(N_Row, N_LabilityClasses)
 
-   INTEGER NRMISS
+   integer(kind=4) NRMISS
 
-   REAL AOV(15), CASE(N_Row,12), COEF(2,5), COVB(2,2), TESTLF(10), Profile(N_Row,3)
-   REAL STAT(15,1)
-   Real, allocatable :: PorosityData(:)
+   real(kind=8) AOV(15), CASE(N_Row,12), COEF(2,5), COVB(2,2), TESTLF(10), Profile(N_Row,3)
+   real(kind=8) STAT(15,1)
+   real(kind=8), allocatable :: PorosityData(:)
    
-   real :: avx, avy, sumx2, sumy2, sumxy, slp, intcpt, crr     !!!  YK 5/22/2017
+   real(kind=8) :: avx, avy, sumx2, sumy2, sumxy, slp, intcpt, crr     !!!  YK 5/22/2017
    
-   real, allocatable ::  xsel(:), ysel(:), xlsel(:), ylsel(:)   !!!  YK 5/22/2017
+   real(kind=8), allocatable ::  xsel(:), ysel(:), xlsel(:), ylsel(:)   !!!  YK 5/22/2017
    
-   integer :: cnt, yint, yfin, cnt2, cnt3, row
-   integer ::   list(3,n_row)
+   integer(kind=4) :: cnt, yint, yfin, cnt2, cnt3, row
+   integer(kind=4) ::   list(3,n_row)
    
    double precision, allocatable :: amx(:,:), amx2(:,:), ymx(:), ymx2(:), cmx(:)
    
-   real :: Db_list(n_row),  Activity_vector2(N_Row), Db_list2(n_row), Dbx_list(n_row), Dby_list(n_row)
+   real(kind=8) :: Db_list(n_row),  Activity_vector2(N_Row), Db_list2(n_row), Dbx_list(n_row), Dby_list(n_row)
    
    logical :: matrixCheck, int_activity_1
    
-   integer info
+   integer(kind=4) info
    double precision imbr
-   integer, allocatable :: ipiv(:)
+   integer(kind=4), allocatable :: ipiv(:)
    
    real(8), allocatable :: a(:), sig(:), coeff(:,:), cov(:,:)
    
-   real :: poly
+   real(kind=8) :: poly
    
-   integer :: poly_fit_n = 6
+   integer(kind=4) :: poly_fit_n = 6
    
-   real :: lab_rowsum_real , lab_mean
-   real :: lab_real_vect(N_row)
+   real(kind=8) :: lab_rowsum_real , lab_mean
+   real(kind=8) :: lab_real_vect(N_row)
 
    ! IMSL Routine RONE is used to do the weighted linear regression:
    ! CALL RONE (NOBS(=N_row), NCOL, DataMatrix, ldx(=n_row), INTCEP(1=yes), IRSP(dep.var.=2), IND(indep.var.=1),
@@ -4297,10 +5432,10 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
           if (y ==   yint ) then
             amx(row,row) = (Db_list(y) - Db_list(y))/pixelSize/pixelSize + Db_list(y)*(-2.0)/pixelSize/pixelSize - decayconstant
             amx(row,row + 1) =  Db_list(y)*(1.0)/pixelSize/pixelSize 
-            ymx(row) = (Db_list(y) - Db_list(y))/pixelSize/pixelSize* merge(Activity_vector2(y),1.      &
+            ymx(row) = (Db_list(y) - Db_list(y))/pixelSize/pixelSize* merge(Activity_vector2(y),1.d0      &
                        , (Activity_vector2(y).ne.0.0).and.(.not.ieee_is_nan(Activity_vector2(y)))     &
                        .and.(yint.ne.1).and.(.not.int_activity_1)) &
-                     +  Db_list(y)*(-1.0)/pixelSize/pixelSize * merge(Activity_vector2(y),1.   &
+                     +  Db_list(y)*(-1.0)/pixelSize/pixelSize * merge(Activity_vector2(y),1.d0   &
                      ,  (Activity_vector2(y).ne.0.0).and.(.not.ieee_is_nan(Activity_vector2(y)))       &
                      .and.(yint.ne.1).and.(.not.int_activity_1))
           else if (y == yfin) then 
@@ -4336,9 +5471,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
         
         do j = 1, cnt2
         write(File_Profile_Re,*) depth_vector(j+yint-1),ymx(j),Activity_vector2(j+yint-1), ymx(j)/(Activity_vector2(j+yint-1))   &
-              , merge(Activity_vector2(yint),1.,.not.int_activity_1)                     &
+              , merge(Activity_vector2(yint),1.d0,.not.int_activity_1)                     &
               *exp(-sqrt(decayconstant/Db)*(depth_vector(j+yint-1)-depth_vector(yint)))  &
-              , merge(Activity_vector2(yint),1.,.not.int_activity_1)                         &
+              , merge(Activity_vector2(yint),1.d0,.not.int_activity_1)                         &
               *exp(-sqrt(decayconstant/Db)*(depth_vector(j+yint-1)-depth_vector(yint)))  &
                 /(Activity_vector2(j+yint-1))
         end do
@@ -4396,7 +5531,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
    Use GlobalVariables
    Implicit None
-   Integer :: i, j
+   integer(kind=4) :: i, j
 
    j = 1 ! the index 1 of the body used to tag organisms ...
      Do i = 1, N_Ind
@@ -4404,6 +5539,31 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
      End do
 
    End Subroutine LocateOrganisms_scan
+
+   ! ***********************
+
+   Subroutine Chk_Org(chr)
+     ! locate the organisms in the matrix and accumulate the verticle depth distribution in "MatrixOccupancy"
+
+   Use GlobalVariables
+   Implicit None
+   integer(kind=4) :: i, j, xx, yy
+   character*6, intent(IN) :: chr
+
+       
+     do i = 1, N_ind
+         do j=1,Org(i)%BodySize
+            xx= Org_loc(j,i)%X
+            yy= Org_loc(j,i)%Y
+            ! print*,j,i,xx,yy,Org(i)%BodySize
+            if (.not.(matrix(yy,xx)%class==i .and. matrix(yy,xx)%value==j)) then 
+                print*,'Error in organisms in '//chr//' ; time, i,j,xx,yy',time, i,j,xx,yy
+                write(file_log,*)'Error in organisms in '//chr//' ; time, i,j,xx,yy',time, i,j,xx,yy
+            endif
+        enddo 
+     enddo
+
+   End Subroutine Chk_Org
 
    ! ***********************
 
@@ -4415,9 +5575,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    use gif_util
 
    implicit none
-   Integer    :: X, Y
-   integer, allocatable   :: image_data(:,:)
-   Integer(2)   :: LookupPorosityColour, LookupActivityColour, LookupLabilityColour
+   integer(kind=4)    :: X, Y
+   integer(kind=4), allocatable   :: image_data(:,:)
+   Integer(kind=4)   :: LookupPorosityColour, LookupActivityColour, LookupLabilityColour
    
    character*21 numtemp
 
@@ -4513,8 +5673,8 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Use GlobalVariables
    Implicit none
    Logical   :: IsPArticle, IsWater, IsOrganism
-   Integer(2) :: LookupLabilityColour
-   Integer   :: Y,X
+   Integer(kind=4) :: LookupLabilityColour
+   integer(kind=4)   :: Y,X
 
    If (IsPArticle(CoOrdinates(Y,X))) then
      Select Case (Particle(MAtrix(Y,X)%Value)%Lability)
@@ -4552,12 +5712,12 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
    Use GlobalVariables
    Implicit none
-   Integer(2) :: LookupPorosityColour
-   Integer   :: Y,X
-   Real :: Por, Delta_Porosity
+   Integer(kind=4) :: LookupPorosityColour
+   integer(kind=4)   :: Y,X
+   real(kind=8) :: Por, Delta_Porosity
 
    ! functions
-   Real :: Porosity_local
+   real(kind=8) :: Porosity_local
 
 
    Por = Porosity_local(CoOrdinates(Y,X),WindowSize)
@@ -4603,9 +5763,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
    Use GlobalVariables
    Implicit none
-   Integer(2) :: LookupActivityColour
-   Real      :: Activity
-   Integer   :: Y,X
+   Integer(kind=4) :: LookupActivityColour
+   real(kind=8)      :: Activity
+   integer(kind=4)   :: Y,X
 
        If (Matrix(Y,X)%Class .eq. p) then
          Activity = Particle(Matrix(Y,X)%Value)%Pb%Activity
@@ -4635,7 +5795,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    implicit none
    logical Isfloating 
    logical :: IsParticle
-   integer :: i,j, xx, yy, xxp, xxg, yyp, yyg, k , o
+   integer(kind=4) :: i,j, xx, yy, xxp, xxg, yyp, yyg, k , o
    Type(Coordinates) ::  Points(4)
    
    Isfloating = .false.
@@ -4684,7 +5844,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Use GlobalVariables
    Implicit None
    Logical IsParticle
-   Type (CoOrdinates) :: Point
+   Type (CoOrdinates), intent (IN) :: Point
    
    IsParticle = .false.
    IF (Matrix(Point%Y,Point%X)%Class .eq. p) IsParticle = .true.
@@ -4713,8 +5873,13 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
    Use GlobalVariables
    Implicit None
-   Logical IsMoveable, IsWater, IsPArticle
+   Logical IsMoveable, IsWater, IsPArticle, InMatrix
    Type (CoOrdinates) :: Point
+   
+   if (.not.inmatrix(point)) then
+    print *, 'error: ismoveable function' 
+    write(file_log, *) 'error: ismoveable function' 
+   endif
    
    IsMoveable = .false.
    IF (IsParticle(Point) .or. IsWater(Point)) IsMoveable = .true.
@@ -4778,18 +5943,23 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Use GlobalVariables
    Implicit None
    Logical :: InMAtrix, IsWater
-   Integer :: Water_Count, Total_Count, X, Y, shift
-   Real :: Porosity_local
+   integer(kind=4) :: Water_Count, Total_Count, X, Y, shift
+   real(kind=8) :: Porosity_local
    Type (CoOrdinates) :: Point
+   integer(kind=4) :: xx,yy
 
      Water_Count = 0
      Total_Count = 0
 
      Do X = Point%X-shift, Point%X+shift
      Do Y = Point%Y-shift, Point%Y+shift
-       If (InMatrix(CoOrdinates(Y,X))) then
+       xx = x
+       yy= y
+       if (xx<1 )xx =xx + n_col
+       if (xx>n_col )xx =xx - n_col
+       If (InMatrix(CoOrdinates(YY,XX))) then
          Total_Count = Total_Count + 1
-         If (IsWater(CoOrdinates(Y,X))) Water_count = Water_Count + 1
+         If (IsWater(CoOrdinates(YY,XX))) Water_count = Water_Count + 1
        End if
      End do
      End do
@@ -4805,8 +5975,8 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
    Use GlobalVariables
    Implicit None
-   Integer Y
-   Real Porosity, Depth, DepthMAx, URand
+   integer(kind=4) Y
+   real(kind=8) Porosity, Depth, DepthMAx, URand
 
      Call Random_Number(URand)
 
@@ -4835,9 +6005,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
    Use GlobalVariables
    Implicit None
-   Integer Y, x, j
-   Real URand, depth, depthmax, lability_pr
-   real :: lab_real
+   integer(kind=4) Y, x, j
+   real(kind=8) URand, depth, depthmax, lability_pr
+   real(kind=8) :: lab_real
 
    Depth = Real(Y - N_RowWAter) * PixelSize
    DepthMAx = Real(N_Row - N_RowWAter) *  PixelSize
@@ -4863,12 +6033,12 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
    Use GlobalVariables
    Implicit None
-   Integer :: ID
-   real :: Lab_real, Lab_real_New
-   Real    :: URand, Pr_Cummulative, TimeIncrement
-   real :: lab_decay
-   real :: fact_law1, fact_law2
-   real merge2
+   integer(kind=4) :: ID
+   real(kind=8) :: Lab_real, Lab_real_New
+   real(kind=8)    :: URand, Pr_Cummulative, TimeIncrement
+   real(kind=8) :: lab_decay
+   real(kind=8) :: fact_law1, fact_law2
+   real(kind=8) merge2
    
    logical :: inMatrix, IsParticle
    
@@ -4893,14 +6063,11 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
          Return
        END IF
 	   
-           TimeIncrement = Real(Time - Particle(ID)%OM%OM_Time0) * TimeScale / 365.   !  (yr)
-		   if ((int(Lab_real*10)>=1).and.(int(Lab_real*10)<=N_LabilityClasses)) then 
-           Pr_Cummulative = Lability_decayConstant(int(Lab_real*10))*TimeIncrement*Lab_real*fact  
-		   else 
-		   Pr_Cummulative = Lability_decayConstant(1)*TimeIncrement*Lab_real*fact
-		   end if 
+           TimeIncrement = Real(Time - Particle(ID)%OM%OM_Time0,kind=8) * TimeScale / 365.d0   !  (yr)
+           
+           Pr_Cummulative = kdcy*TimeIncrement*Lab_real 
     
-    if (oxygen_ON) then
+    ! if (oxygen_ON) then
     
     if (particle(ID)%loc%X == 1) then 
       if (particle(ID)%loc%Y == n_row) then 
@@ -4921,11 +6088,11 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
              
     Lab_real_new = Lab_real -( &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,n_col)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,n_col)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,n_col)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
+                ,1.d0,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
       else if (particle(ID)%loc%Y == 1) then 
     O2(particle(ID)%loc%Y,n_col)%Oxygen_use = &
@@ -4945,11 +6112,11 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
              
     Lab_real_new = Lab_real -( &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,n_col)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,n_col)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,n_col)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
+                ,1.d0,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
        else 
     O2(particle(ID)%loc%Y,n_col)%Oxygen_use = &
@@ -4974,13 +6141,13 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
              
     Lab_real_new = Lab_real -( &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,n_col)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,n_col)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,n_col)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
+                ,1.d0,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              ) *iox/OM_uni
         end if 
         
@@ -5003,11 +6170,11 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
              
     Lab_real_new = Lab_real - ( &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
+                ,1.d0,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
       else if (particle(ID)%loc%Y == 1) then 
     O2(particle(ID)%loc%Y,1)%Oxygen_use = &
@@ -5027,11 +6194,11 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
              
     Lab_real_new = Lab_real - ( &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
+                ,1.d0,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
        else 
     O2(particle(ID)%loc%Y,1)%Oxygen_use = &
@@ -5056,13 +6223,13 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
              
     Lab_real_new = Lab_real -( &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
+                ,1.d0,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
       end if
       
@@ -5085,11 +6252,11 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
              
     Lab_real_new = Lab_real - ( &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
+                ,1.d0,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
       else if (particle(ID)%loc%Y == 1) then 
     O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use = &
@@ -5109,11 +6276,11 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
              
     Lab_real_new = Lab_real - ( &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
+                ,1.d0,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
        else 
     O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%Oxygen_use = &
@@ -5138,13 +6305,13 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
              
     Lab_real_new = Lab_real -( &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,particle(ID)%loc%X+1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
+                ,1.d0,O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))  +  &
              Pr_Cummulative*(merge2(O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen*(fact_law1/mo2+fact_law2)  &
-                ,1.,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
+                ,1.d0,O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%oxygen<= fact_Law1*mo2/iox + fact_law2*10d0))    &
              )*iox/OM_uni
       end if
     end if
@@ -5154,18 +6321,18 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
              Particle(ID)%OM%OM_Time0 = Time
              Particle(ID)%OM%OMact = Lab_real_New
     
-     end if
+     ! end if
      
-     if (.not. oxygen_ON) then 
+     ! if (.not. oxygen_ON) then 
           
-          Lab_real_new = Lab_real -( &
-             Pr_Cummulative  & 
-             )*iox/OM_uni
+          ! Lab_real_new = Lab_real -( &
+             ! Pr_Cummulative  & 
+             ! )*iox/OM_uni
              
-             Particle(ID)%OM%OM_Time0 = Time
-             Particle(ID)%OM%OMact = Lab_real_New
+             ! Particle(ID)%OM%OM_Time0 = Time
+             ! Particle(ID)%OM%OMact = Lab_real_New
      
-     end if 
+     ! end if 
            
    End Function Lab_real_New
 
@@ -5176,8 +6343,8 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
    Use GlobalVariables
    implicit none
-   Integer n
-   Real TimeIncrement, Activity_New
+   integer(kind=4) n
+   real(kind=8) TimeIncrement, Activity_New
 
      TimeIncrement = Real (Time - Particle(n)%Pb%Time0) * TimeScale / 365.
      Activity_New = Particle(n)%Pb%Activity0 * (Exp( - DecayConstant * TimeIncrement ) )
@@ -5192,7 +6359,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
    Use GlobalVariables
    implicit none
-   Real :: YearValue, DayValue, HourValue, MinValue
+   real(kind=8) :: YearValue, DayValue, HourValue, MinValue
    CHARACTER*4 Year_str
    CHARACTER*3 day_str
    Character*2 Hour, Minutes
@@ -5227,7 +6394,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Use GlobalVariables
    implicit none
    Logical IsParticle
-   Integer  i, j, x, y, P_Count
+   integer(kind=4)  i, j, x, y, P_Count
 
      P_Count = 0
 
@@ -5253,9 +6420,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    
    implicit none
    
-   integer :: n, i 
+   integer(kind=4) :: n, i 
    double precision :: a(n)
-   real x, clc, poly
+   real(kind=8) x, clc, poly
    
    clc = 0.
    do i = 1, n
@@ -5273,7 +6440,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    implicit none
    
    logical :: n 
-   real :: a,b,merge2
+   real(kind=8) :: a,b,merge2
    
    if (n) then
      merge2 = a
@@ -5303,11 +6470,11 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 ! during the calculation
 !===========================================================
 implicit none 
-integer n
+integer(kind=4) n
 double precision a(n,n), c(n,n)
 double precision L(n,n), U(n,n), b(n), d(n), x(n)
 double precision coeff
-integer i, j, k
+integer(kind=4) i, j, k
 
 ! step 0: initialization for matrices L and U and b
 ! Fortran 90/95 aloows such operations on matrices
@@ -5385,11 +6552,11 @@ end subroutine inverse
 ! during the calculation
 !===========================================================
 implicit none 
-integer n
+integer(kind=4) n
 double precision a(n,n), c(n), b(n)
 ! double precision L(n,n), U(n,n), b(n), d(n), x(n)
 double precision coeff
-integer i, k
+integer(kind=4) i, k
 
 do k=1, n
    coeff = 0.0
@@ -5406,12 +6573,12 @@ end subroutine dot
 subroutine heapsortR(n,array,turn)
 !!!  from http://slpr.sakura.ne.jp/qp/sortf90/
   implicit none
-  integer,intent(in)::n
-  integer,intent(out)::turn(1:n)
-  real,intent(inout)::array(1:n)
+  integer(kind=4),intent(in)::n
+  integer(kind=4),intent(out)::turn(1:n)
+  real(kind=8),intent(inout)::array(1:n)
  
-  integer::i,k,j,l,m
-  real::t
+  integer(kind=4)::i,k,j,l,m
+  real(kind=8)::t
  
   if(n.le.0)then
      write(6,*)"Error, at heapsort"; stop

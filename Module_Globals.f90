@@ -31,59 +31,65 @@
    logical, save :: Detail_Log    !!!  YK
    logical, save :: Ash_ON    !!!  YK
    logical, save :: Incl_ASH    !!!  YK
+   logical, save :: Mod_Pop    !!!  YK
+   logical, save :: non_Pop    !!!  YK
+   logical, save :: trans_making    !!!  YK
+   logical, save :: Long_run    !!!  YK
+   logical, save :: Het_sed    !!!  YK
 
-   Integer, Save :: N_Ind, N_Row, N_Col, N_Cell, Buffer_Zone, N_RowWater, N_RowSed, N_LabilityClasses
-   Integer, Save :: Total_N_Particles, Total_N_Particles0, ParticleTolerance
-   Integer, Save :: StoppedTolerance, N_Outputs, DepthDeadZone, N_outputs2
-   Integer, Save :: RainCount, PointerToFreeParticle, ParticlesToSediment_y, Time_Sediment
-   Integer, Save :: TimeMin, TimeMax, TimeStep, RandSeed, DEPTHTOCONSTRAIN, MissingValue, WindowSize
-   Integer, Save :: Time, Day, Year
-   Integer, Save :: Savetime  !  added -------- YK 5/22/2017
-   integer, save :: y_int       !! YK
-   integer, save :: Org_ID_ishape       !! YK
+   integer(kind=4), Save :: N_Ind, N_Row, N_Col, N_Cell, Buffer_Zone, N_RowWater, N_RowSed, N_LabilityClasses
+   integer(kind=4), Save :: Total_N_Particles, Total_N_Particles0, ParticleTolerance
+   integer(kind=4), Save :: StoppedTolerance, N_Outputs, DepthDeadZone, N_outputs2
+   integer(kind=4), Save :: RainCount, PointerToFreeParticle, ParticlesToSediment_y, Time_Sediment
+   integer(kind=4), Save :: TimeMin, TimeMax, TimeStep, RandSeed, DEPTHTOCONSTRAIN, MissingValue, WindowSize
+   integer(kind=4), Save :: Time, Day, Year
+   integer(kind=4), Save :: Savetime  !  added -------- YK 5/22/2017
+   integer(kind=4), save :: y_int       !! YK
+   integer(kind=4), save :: Org_ID_ishape       !! YK
+   integer(kind=4), save :: PopTot       !! YK
 
-   Real, Save    :: TimeScale, PixelSize, Porosity0, POROSITY_THRESHOLD, Porosity_DecayRate, Tolerance
-   Real, Save    :: SedimentationRate, SedRate, DecayConstant, AspectRatio
-   Real, Save    :: Pr_Activity_day, Pr_Activity_year
-   Real, Save    :: AREA_Total
-   Real, Save    :: TotOrgDecay, TotResp, TotO2Dif, TotAbio, TotO2Adv   !! YK
-   real, save    :: totO2, pretotO2
-   real, save    :: Time_Ash       !! YK
-   real, save    :: Ash_thickness       !! YK
-   real, save    :: Ash_porosity       !! YK
+   real(kind=8), Save    :: TimeScale, PixelSize, Porosity0, POROSITY_THRESHOLD, Porosity_DecayRate, Tolerance
+   real(kind=8), Save    :: SedimentationRate, SedRate, DecayConstant, AspectRatio
+   real(kind=8), Save    :: Pr_Activity_day, Pr_Activity_year
+   real(kind=8), Save    :: AREA_Total
+   real(kind=8), Save    :: TotOrgDecay, TotResp, TotO2Dif, TotAbio, TotO2Adv   !! YK
+   real(kind=8), save    :: totO2, pretotO2, reso2
+   real(kind=8), save    :: Time_Ash       !! YK
+   real(kind=8), save    :: Ash_thickness       !! YK
+   real(kind=8), save    :: Ash_porosity       !! YK
 
    Character*3   :: Porosity_Type
    Character*14  :: CurrentTime
    Character*255  :: WorkDir, Workname, Today, O2ratelaw
 
-   Integer, Parameter :: w=0, p=-1   ! values of water (w) and particles (p) used in Particle%Class (see below)
-   Real, Parameter :: pi = 3.14159
+   integer(kind=4), Parameter :: w=0, p=-1   ! values of water (w) and particles (p) used in Particle%Class (see below)
+   real(kind=8), Parameter :: pi = 3.14159
 
    Type CellContent
-     Integer :: Value, Class  ! the id value itself .. of the particle, organism, or water
+     integer(kind=4) :: Value, Class  ! the id value itself .. of the particle, organism, or water
    End Type CellContent       ! the class identifier - particle=p (=-1), water=w (=0), organism id
 
    Type Coordinates
-     Integer :: Y, X
+     integer(kind=4) :: Y, X
    End Type Coordinates
 
    Type Tracer
-     Real    :: Activity, Activity0
-     Integer :: Time0
+     real(kind=8)    :: Activity, Activity0
+     integer(kind=4) :: Time0
    End Type Tracer
 
    Type Tracer_OM
-     Real    :: OMact, OMact_0
-     Integer :: OM_Time0
+     real(kind=8)    :: OMact, OMact_0
+     integer(kind=4) :: OM_Time0
    End Type Tracer_OM
    
    Type Tracer_Ash
-     Real    :: Ashact, Ashact_0
-     Integer :: Ash_Time0
+     real(kind=8)    :: Ashact, Ashact_0
+     integer(kind=4) :: Ash_Time0
    End Type Tracer_Ash
 
    Type Particle_Char
-     Integer           :: Lability, Lability_Time0, Plane
+     integer(kind=4)           :: Lability, Lability_Time0, Plane
      Type(Tracer)      :: Pb
      Type(Tracer_OM)      :: OM
      ! Type(Tracer_Ash)      :: Ash
@@ -96,19 +102,19 @@
    End Type Particle_Char2
 
    Type Intake
-     Real    :: Rate, Selectivity
-     Integer :: Amount
+     real(kind=8)    :: Rate, Selectivity
+     integer(kind=4) :: Amount
    End Type Intake
 
    Type Gut_Char
-     Integer :: Capacity, Content
-     Real    :: Pb_Activity
+     integer(kind=4) :: Capacity, Content
+     real(kind=8)    :: Pb_Activity
    End type Gut_Char
 
    Type LocoMotory
-     Real        :: Rate
-     Integer     :: Distance, Bearing_Distance, rEVERSEcOUNT, StoppedTime
-     Real        :: Bearing
+     real(kind=8)        :: Rate
+     integer(kind=4)     :: Distance, Bearing_Distance, rEVERSEcOUNT, StoppedTime
+     real(kind=8)        :: Bearing
    End Type Locomotory
 
    Type CurrentState
@@ -120,9 +126,9 @@
    End Type PotentialState
 
    Type Organism_Char
-     Real                :: Density, Pr_GoStraight
+     real(kind=8)                :: Density, Pr_GoStraight
      Character (Len=1)   :: FeedingType
-     Integer             :: Length, Width, HeadSize, BodySize, Orientation, SensoryRange, FaecesWidth
+     integer(kind=4)             :: Length, Width, HeadSize, BodySize, Orientation, SensoryRange, FaecesWidth
      Type(PotentialState):: Can
      Type(CurrentState)  :: Is
      Type(Gut_Char)      :: Gut
@@ -131,8 +137,8 @@
    End Type Organism_Char
    
    type oxygen_conc
-     real :: oxygen, oxygen_pre, oxygen_use
-     integer :: value_pre, mark
+     real(kind=8) :: oxygen, oxygen_pre, oxygen_use
+     integer(kind=4) :: value_pre, mark
    end type oxygen_conc
 
    Type(CellContent), Allocatable, Save    :: Matrix(:,:), Guts(:,:), Block(:)
@@ -146,43 +152,55 @@
    Type(coordinates), Allocatable, Save    :: flow_loc(:,:)  !! YK
 
 
-   Real, Allocatable, Save                 :: Lability_decayConstant(:), Lability_proportion(:)
-   Integer, Allocatable, Save              :: Particle_ID_free(:), MatrixOccupancy(:), Time_output(:), Time_output2(:)
-   Integer, Allocatable, Save              :: IngestionHistory(:,:), MovementHistory(:,:)
-   Integer, Allocatable, Save              :: RespHistory(:,:)   !! YK 
-   Integer, Allocatable, Save              :: EgestHistory(:,:)   !! YK 
-   Integer, Allocatable, Save              :: Dir_rec(:,:)   !! YK 
-   real, Allocatable, Save                 :: Ub(:,:),Vb(:,:)   !! YK 
-   real, allocatable, save                 :: Ug(:,:), Vg(:,:), Pg(:,:), Dg(:,:)  !!  YK matrix recording velocity info
-   real, allocatable, save                 :: Uo(:,:), Vo(:,:)  !!  YK matrix recording velocity info for oxygen concentration calc
-   real, allocatable, save                 :: edif(:,:) 
+   real(kind=8), Allocatable, Save                 :: Lability_decayConstant(:), Lability_proportion(:)
+   integer(kind=4), Allocatable, Save              :: Particle_ID_free(:), MatrixOccupancy(:), Time_output(:), Time_output2(:)
+   integer(kind=4), Allocatable, Save              :: IngestionHistory(:,:), MovementHistory(:,:)
+   integer(kind=4), Allocatable, Save              :: RespHistory(:,:)   !! YK 
+   integer(kind=4), Allocatable, Save              :: EgestHistory(:,:)   !! YK 
+   integer(kind=4), Allocatable, Save              :: Dir_rec(:,:)   !! YK 
+   integer(kind=4), Allocatable, Save              :: swi(:)   !! YK 
+   real(kind=8), Allocatable, Save                 :: Ub(:,:),Vb(:,:)   !! YK 
+   real(kind=8), allocatable, save                 :: Ug(:,:), Vg(:,:), Pg(:,:), Dg(:,:)  !!  YK matrix recording velocity info
+   real(kind=8), allocatable, save                 :: Uo(:,:), Vo(:,:)  !!  YK matrix recording velocity info for oxygen concentration calc
+   real(kind=8), allocatable, save                 :: edif(:,:) 
+   real(kind=8), allocatable, save                 :: EnergyHistory(:,:), CurrentEnergy(:)  !! YK 
+   real(kind=8), allocatable, save                 :: RespCnst(:)  !! YK 
+   integer(kind=4), allocatable, save              :: DeathFlg(:)    !!!  YK
+   integer(kind=4), allocatable, save              :: PopLogID(:)    !!!  YK
 
    ! global colour definitions
 
-   integer, parameter :: black=0,  red=1,    green=2,  blue=3, white=4,  yellow=5,   &
+   integer(kind=4), parameter :: black=0,  red=1,    green=2,  blue=3, white=4,  yellow=5,   &
                                green1=6, green2=7, green3=8, green4=9, green5=10,   &
                                blue1=11, blue2=12, blue3=13, blue4=14, blue5=15,     &
                                red1=16,  red2=17,  red3=18,  red4=19, red5=20,      &
                                turq1=21, turq2=22, turq3=23, turq4=24, turq5=25,     &
                                grey1=26, grey2=27, grey3=28, grey4=29, grey5=30, grey6=31
 
-   Integer, Parameter :: File_Profile = 10  , File_Scaling = 20 , File_Activity=30, File_Displace=40
-   Integer, Parameter :: File_Parameters = 1, File_Organisms = 2, File_ASCII = 3, File_txtImg = 4, File_txtImg_2 = 5
+   integer(kind=4), Parameter :: File_Profile = 10  , File_Scaling = 20 , File_Activity=30, File_Displace=40
+   integer(kind=4), Parameter :: File_Parameters = 1, File_Organisms = 2, File_ASCII = 3, File_txtImg = 4, File_txtImg_2 = 5
    
-   Integer, Parameter :: File_Profile2 = 50, File_Profile3 = 60, File_Displace2=70, File_oneD=80,  File_Profile_Re = 90
-   integer, parameter :: File_temp = 950, File_flux = 230, File_Log = 340, file_flux_txt = 220
+   integer(kind=4), Parameter :: File_Profile2 = 50, File_Profile3 = 60, File_Displace2=70, File_oneD=80,  File_Profile_Re = 90
+   integer(kind=4), parameter :: File_temp = 950, File_flux = 230, File_Log = 340, file_flux2 = 220
    
-   Integer, Parameter :: poly_fit = 100
+   integer(kind=4), Parameter :: poly_fit = 100
    
-   Integer, Parameter :: File_Diet = 19, File_Core = 29, File_Core_M = 39, File_Core_L = 49, File_Core_A = 59
+   integer(kind=4), Parameter :: File_Diet = 19, File_Core = 29, File_Core_M = 39, File_Core_L = 49, File_Core_A = 59, File_pop = 55
+   integer(kind=4),parameter  :: File_sedrate = 18
    
-   real, parameter :: po_particle = 0.9
-   real, parameter :: iox = 220.e-6  ! mol/L
-   real, parameter :: OM_uni = 0.833 ! mol/L/wt%: conversion of wt% OM to mol/L OM
-   real, parameter :: fact = 1e0/220.e-6   ! YK
-   real, parameter :: bio_fact = 1e4  
-   real, parameter :: dif_0 = 387.8928 ! cm^2/yr
-   real, parameter :: mo2 = 8e-6 ! mol/L
+   real(kind=8), parameter :: po_particle = 0.9
+   real(kind=8), parameter :: pal = 1d0
+   real(kind=8), parameter :: iox = 220.e-6 ! mol/L
+   real(kind=8), parameter :: OM_uni = 0.833 ! mol/L/wt%: conversion of wt% OM to mol/L OM
+   real(kind=8), parameter :: fact = 1e0/220.e-6   ! YK factor to multiply rate cnsts to normalize everything with O2 (i.e. = 1/iox)
+   real(kind=8), parameter :: bio_fact = 1e4  ! default 1e4  
+   ! real(kind=8), parameter :: bio_fact = 1e3  ! High rxn option  
+   real(kind=8), parameter :: dif_0 = 387.8928 ! cm^2/yr
+   real(kind=8), parameter :: mo2 = 8e-6 ! mol/L
+   real(kind=8), parameter :: kdcy = 1e-1/220.e-6 ! wt%-1 yr-1;  default 1e-1/220.e-6
+   ! real(kind=8), parameter :: kdcy = 1e-1/220.e-7 ! wt%-1 yr-1;  High rxn option 
+   real(kind=8), parameter :: width_3d = 0.25 ! cm
+   real(kind=8), parameter :: shearfact = 1d0
    
    !  Summary of the structure of the User defined types
    !
