@@ -18,5 +18,5 @@ True 	 output porosity as a function of scale ?
 22.3	Tracer halflife (t = 22.3 yr for 210Pb)
 10	Depth at which organisms have ~0 Probability of being found (cm)
 0	Start of output (days)
-365001	End of output (days)
+1	End of output (years)
 10	Time  steps (Frequency of data output; days .. if a movie)

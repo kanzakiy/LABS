@@ -128,10 +128,10 @@
    non_pop = .false.
    
    trans_making = .true.
-   ! trans_making = .false.
+   trans_making = .false.
    
    Long_Run = .true.
-   ! Long_Run = .false.
+   Long_Run = .false.
 
 
 
@@ -223,9 +223,9 @@
                                  (1.+ cos(pi+ 2.*pi*(Real(Time - Time_Sediment*0.5)/Real(Year))))
                    ParticlesToSediment = ParticlesToSediment_y * ( Area_Period / Area_Total )
                    Call Particle_sediment(ParticlesToSediment)
-                   accpat=accpat+ParticlesToSediment
-                   write(file_sedrate,*) (time/real(year)),accpat*pixelsize/real(n_col)/(time/real(year))*1d3  ! cm/kyr
-                   print*, (time/real(year)),accpat*pixelsize/real(n_col)/(time/real(year))*1d3
+                   ! accpat=accpat+ParticlesToSediment
+                   ! write(file_sedrate,*) (time/real(year)),accpat*pixelsize/real(n_col)/(time/real(year))*1d3  ! cm/kyr
+                   ! print*, (time/real(year)),accpat*pixelsize/real(n_col)/(time/real(year))*1d3
                    Call LocateOrganisms_scan()  ! subroutine that collects info of the location of organisms ..
              End if
 
@@ -236,7 +236,7 @@
              ! sneek an output of the current time to show how far the sim has progressed
                  write(*,*) "sedimentation!!",CurrentTime, Time,ParticlesToSediment
                  
-         call disperse()        ! subroutine to dispers in x direction
+         ! call disperse()        ! subroutine to dispers in x direction
          
          
          !  check for error 
