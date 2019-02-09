@@ -8,7 +8,7 @@ Extended to include calculation of water flow and oxygen and organic matter conc
 
 You need BLAS & UMFPACK libraries installed. 
 
-Then, to make a simulation, following steps are required. 
+Then, to make a simulation, following steps need be followed. 
 
 (1) Specify parameters in LABS.f90, Module_Globals.f90 and Parameters_IN.txt
     (a) Specify directory where output is stored in line 40 of LABS.f90. 
