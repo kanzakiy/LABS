@@ -14,7 +14,7 @@ Then, to make a simulation, following steps need be followed.
     (a) Specify directory where output is stored in line 40 of LABS.f90. 
     (b) Turn switches on/off depending on simulations in lines 91-134 in LABS.f90.
     (c) Change reaction rate, shear velocity and oxygen concentration (if you want) in lines 203, 196-197; 200-201, and 193, respectively, in Module_Globals.f90.  
-    (d) Change sedimentation rate, porosity and simulation duration (if you want) in lines 15, 17 and 21 in Parameters_In.txt. 
+    (d) Change sedimentation rate, porosity and simulation duration (if you want) in lines 15, 17 and 21 in Parameters_IN.txt. 
 (2) Compile codes by typing 'make'. If successful, labs.exe is created. If you previously created labs.exe, type 'make clear' before compiling. 
 (3) Simulate an experiment by typing './labs your_experiment_name'.
 (4) Analyze results in a directory of your_experiment_name in the directory you specified in LABS.f90.
