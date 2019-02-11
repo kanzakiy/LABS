@@ -45,7 +45,7 @@ More specifically, to simulate individual runs in Section 3, you need following 
 (c)  oxygen_ON = .true.(in LABS.f90), kdcy = 1e-1/220.e-7, bio_fact = 1e3 (in Module_Globals.f90),0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)      
 (d)  oxygen_ON = .true.(in LABS.f90), 0.6 Porosity of sediment, 10 End of output, 0.15 Sedimentation rate (in Parameters_IN.txt) 
 ~~~Section 3.3~~~ 
-(a)  oxygen_ON = .true.(in LABS.f90), iox = 220.e-6 (in Module_Globals.f90), 0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)         
-(b)  oxygen_ON = .true., oxFB_ON = .false. (in LABS.f90), iox = 220.e-6 (in Module_Globals.f90), 0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)        
-(c)  oxygen_ON = .true.(in LABS.f90), kdcy = 1e-1/220.e-7, bio_fact = 1e3,iox = 220.e-6 (in Module_Globals.f90),0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)      
-(d)  oxygen_ON = .true.(in LABS.f90), iox = 220.e-6 (in Module_Globals.f90), 0.6 Porosity of sediment, 10 End of output, 0.15 Sedimentation rate (in Parameters_IN.txt) 
+(a)  oxygen_ON = .true.(in LABS.f90), iox = 220.e-7 (in Module_Globals.f90), 0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)         
+(b)  oxygen_ON = .true., oxFB_ON = .false. (in LABS.f90), iox = 220.e-7 (in Module_Globals.f90), 0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)        
+(c)  oxygen_ON = .true.(in LABS.f90), kdcy = 1e-1/220.e-7, bio_fact = 1e3,iox = 220.e-7 (in Module_Globals.f90),0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)      
+(d)  oxygen_ON = .true.(in LABS.f90), iox = 220.e-7 (in Module_Globals.f90), 0.6 Porosity of sediment, 10 End of output, 0.15 Sedimentation rate (in Parameters_IN.txt) 
