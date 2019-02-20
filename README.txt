@@ -10,12 +10,13 @@ You need BLAS & UMFPACK libraries installed.
 
 To make a simulation, following steps need be followed. 
 
-(1) Specify parameters in LABS.f90, Module_Globals.f90 and Parameters_IN.txt.
+(1) Specify parameters in eParameters_IN.txt, SedENV.IN and Parameters_IN.txt.
     (a) Specify directory where output is stored in line 40 of LABS.f90. 
-    (b) Turn switches on/off depending on simulations in lines 91-134 in LABS.f90.
-    (c) Change reaction rate, shear velocity and oxygen concentration (if you want) in lines 203, 196-197, 200-201, and 193 in Module_Globals.f90.  
-    (d) Change sedimentation rate, porosity and simulation duration (if you want) in lines 15, 17 and 21 in Parameters_IN.txt. 
-(2) Compile codes by typing 'make'. If successful, labs.exe is created. If you previously created labs.exe, type 'make clean' before compiling. 
+    (b) Turn switches on/off depending on simulations in eParameters_IN.txt.
+    (c) Change reaction rate, shear velocity and oxygen concentration (if you want) in SedENV.IN.  
+    (d) Change sedimentation rate, porosity and simulation duration (if you want) in Parameters_IN.txt. 
+(2) Compile codes by typing 'make'. If successful, labs.exe is created. Whenever you changed FORTRAN90 code, you need compile. 
+    If you previously created labs.exe, type 'make clean' before compiling again. 
 (3) Simulate an experiment by typing './labs your_experiment_name'.
 (4) Analyze results in a directory of your_experiment_name in the directory you specified in LABS.f90.
     (a) Flux can be immediately plotted (with/without experiments finished) by double clicking biot-flx2.plt (you need gnuplot for this). 
@@ -26,26 +27,26 @@ To make a simulation, following steps need be followed.
     (e) You can examine biodiffusion coefficient after the experiment is finished by double clicking biot-Db.plt (again you need gnuplot for this).
 
 If you do not change any parameters, you run an original LABS simulation (Fig. 2a). 
-To modify food control on organisms to change the burrow density in LABS (Fig. 2b), you need switch on 'i-shape' (i.e.,i-shape =.true.) in LABS.f90. 
-To simulate oxygen reactive transport, you need switch on 'oxygen_ON' (i.e.,oxygen_ON =.true.) in LABS.f90.
-To calculate advective water flow, you need switch on 'flow_ON' (i.e.,flow_ON =.true.) in LABS.f90.
+To modify food control on organisms to change the burrow density in LABS (Fig. 2b), you need switch on 'i-shape' (i.e.,i-shape =.true.) in eParameters_IN.txt. 
+To simulate oxygen reactive transport, you need switch on 'oxygen_ON' (i.e.,oxygen_ON =.true.) in eParameters_IN.txt.
+To calculate advective water flow, you need switch on 'flow_ON' (i.e.,flow_ON =.true.) in eParameters_IN.txt.
 
 More specifically, to simulate individual runs in Section 3, you need following changes in the codes.
 
 ~~~Section 3.1~~~
-(a)  oxygen_ON = .true., flow_ON = true. (in LABS.f90)       
-(b)  oxygen_ON = .true., flow_ON = true., oxFB_ON = .false. (in LABS.f90)        
-(c)  oxygen_ON = .true., flow_ON = true. (in LABS.f90), kdcy = 1e-1/220.e-7, bio_fact = 1e3 (in Module_Globals.f90)      
-(d)  oxygen_ON = .true., flow_ON = true. (in LABS.f90), 0.6 Porosity of sediment (in Parameters_IN.txt)           
-(e)  oxygen_ON = .true., flow_ON = true. (in LABS.f90), shearfact = 10d0 (in Module_Globals.f90)
-(f)  oxygen_ON = .true. (in LABS.f90)  
+(a)  oxygen_ON = .true., flow_ON = true. (in eParameters_IN.txt)       
+(b)  oxygen_ON = .true., flow_ON = true., oxFB_ON = .false. (in eParameters_IN.txt)        
+(c)  oxygen_ON = .true., flow_ON = true. (in eParameters_IN.txt), kdcy = 1e-1/220.e-7, bio_fact = 1e3 (in SedENV.IN)      
+(d)  oxygen_ON = .true., flow_ON = true. (in eParameters_IN.txt), 0.6 Porosity of sediment (in Parameters_IN.txt)           
+(e)  oxygen_ON = .true., flow_ON = true. (in eParameters_IN.txt), shearfact = 10d0 (in SedENV.IN)
+(f)  oxygen_ON = .true. (in eParameters_IN.txt)  
 ~~~Section 3.2~~~ 
-(a)  oxygen_ON = .true.(in LABS.f90), 0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)         
-(b)  oxygen_ON = .true., oxFB_ON = .false. (in LABS.f90), 0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)        
-(c)  oxygen_ON = .true.(in LABS.f90), kdcy = 1e-1/220.e-7, bio_fact = 1e3 (in Module_Globals.f90),0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)      
-(d)  oxygen_ON = .true.(in LABS.f90), 0.6 Porosity of sediment, 10 End of output, 0.15 Sedimentation rate (in Parameters_IN.txt) 
+(a)  oxygen_ON = .true.(in eParameters_IN.txt), 0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)         
+(b)  oxygen_ON = .true., oxFB_ON = .false. (in eParameters_IN.txt), 0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)        
+(c)  oxygen_ON = .true.(in eParameters_IN.txt), kdcy = 1e-1/220.e-7, bio_fact = 1e3 (in SedENV.IN),0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)      
+(d)  oxygen_ON = .true.(in eParameters_IN.txt), 0.6 Porosity of sediment, 10 End of output, 0.15 Sedimentation rate (in Parameters_IN.txt) 
 ~~~Section 3.3~~~ 
-(a)  oxygen_ON = .true.(in LABS.f90), pal = 0.1d0 (in Module_Globals.f90), 0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)         
-(b)  oxygen_ON = .true., oxFB_ON = .false. (in LABS.f90), pal = 0.1d0 (in Module_Globals.f90), 0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)        
-(c)  oxygen_ON = .true.(in LABS.f90), kdcy = 1e-1/220.e-7, bio_fact = 1e3, pal = 0.1d0 (in Module_Globals.f90),0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)      
-(d)  oxygen_ON = .true.(in LABS.f90), pal = 0.1d0 (in Module_Globals.f90), 0.6 Porosity of sediment, 10 End of output, 0.15 Sedimentation rate (in Parameters_IN.txt) 
+(a)  oxygen_ON = .true.(in eParameters_IN.txt), pal = 0.1d0 (in SedENV.IN), 0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)         
+(b)  oxygen_ON = .true., oxFB_ON = .false. (in eParameters_IN.txt), pal = 0.1d0 (in SedENV.IN), 0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)        
+(c)  oxygen_ON = .true.(in eParameters_IN.txt), kdcy = 1e-1/220.e-7, bio_fact = 1e3, pal = 0.1d0 (in SedENV.IN),0.6 Porosity of sediment, 10 End of output (in Parameters_IN.txt)      
+(d)  oxygen_ON = .true.(in eParameters_IN.txt), pal = 0.1d0 (in SedENV.IN), 0.6 Porosity of sediment, 10 End of output, 0.15 Sedimentation rate (in Parameters_IN.txt) 
