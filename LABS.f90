@@ -46,6 +46,10 @@
    call system ('mkdir -p '//trim(adjustl(Today))//'/data')
    
    call system ('cp labs.exe '//trim(adjustl(Today)))
+   call system ('cp eParameters_IN.txt '//trim(adjustl(Today)))
+   call system ('cp Parameters_IN.txt '//trim(adjustl(Today)))
+   call system ('cp SedENV.IN '//trim(adjustl(Today)))
+   call system ('cp Organisms.IN '//trim(adjustl(Today)))
 
        OPEN(unit = File_Profile,  file = trim(adjustl(Today))//          &
                                '/DepthProfiles.OUT', status = 'unknown')
@@ -87,51 +91,6 @@
                                   '/sedrate.OUT', status = 'unknown')
 
    ! Begin main program loop
-   
-   oxygen_ON = .true.
-   oxygen_ON = .false.
-   
-   oxFB_ON = .true.
-   ! oxFB_ON = .false.
-   
-   Resp_ON = .true.
-   ! resp_ON = .false.
-   
-   errCHk = .true.
-   ! errChk = .false.
-   
-   I_shape = .true.
-   I_shape = .false.
-   
-   flow_ON = .true.
-   flow_ON = .false.
-
-   only_sed = .True.   
-   only_sed = .FALSE.
-   
-   Detail_Log = .True.
-   Detail_Log = .False.
-
-   Incl_ASH = .True. 
-   Incl_ASH = .False. 
-   
-   O2ratelaw = 'linear'
-   ! O2ratelaw = 'monod'
-   ! O2ratelaw = 'zero'
-	
-   Org_ID_ishape = 1
-   
-   Mod_Pop = .True.
-   Mod_Pop = .False.
-   
-   non_pop =  .true.
-   non_pop = .false.
-   
-   trans_making = .true.
-   trans_making = .false.
-   
-   Long_Run = .true.
-   Long_Run = .false.
 
 
 
@@ -469,6 +428,7 @@
            ! endif
            
            If (Mod(Time,Time_Sediment) .eq. 0) then
+           ! If (Any(Time .eq. Time_Output)) then
                  Call Random_Number(rnum)
                  print*,'just before addpop'
                  call addpop()
@@ -620,6 +580,41 @@
          READ(File_Parameters,*) r_TimeMin          ! OUTPUT begins at time = n
          READ(File_Parameters,*) r_TimeMax          ! Endtime (days) changed to years
          READ(File_Parameters,*) r_TimeStep         ! Time steps ... Frequency of data output (days)
+       CLOSE(File_Parameters)
+   
+   ! input user defined variables .. eLABS
+       OPEN(unit = File_Parameters, file = 'eParameters_IN.txt', status = 'old')
+         READ(File_Parameters,*) oxygen_ON          ! if true, oxygen is simulated 
+         READ(File_Parameters,*) oxFB_ON            ! oxygen feedback
+         READ(File_Parameters,*) Resp_ON            ! respiration
+         READ(File_Parameters,*) errCHk             ! error check in each subroutine 
+         READ(File_Parameters,*) I_shape            ! modify food control 
+         READ(File_Parameters,*) flow_ON            ! simulation of water flow based on ns equation 
+         READ(File_Parameters,*) only_sed           ! oxygen calculation is limited below swi
+         READ(File_Parameters,*) Detail_Log         ! recording everything in each time step 
+         READ(File_Parameters,*) Incl_ASH           ! ash experiment
+         READ(File_Parameters,*) O2ratelaw          ! om decomposition rate law 
+         READ(File_Parameters,*) Org_ID_ishape      ! if ishape, id is assigned here 
+         READ(File_Parameters,*) Mod_Pop            ! allow population change 
+         READ(File_Parameters,*) non_pop            ! barren sediment
+         READ(File_Parameters,*) trans_making       ! making transition matrix
+         READ(File_Parameters,*) Long_Run           ! if yes, recording is less frequent 
+         READ(File_Parameters,*) O2lim_on           ! limiting depths of animals with some threshold o2 conc. (non working right now)
+       CLOSE(File_Parameters)
+       
+   ! input user defined variables .. some constants in eLABS 
+       OPEN(unit = File_Parameters, file = 'SedENV.IN', status = 'old')
+         READ(File_Parameters,*) pal                ! fraction of o2 (0 to 1) 
+         READ(File_Parameters,*) iox                ! reference oxygen conc.
+         READ(File_Parameters,*) OM_uni             ! mol/L/wt%: conversion of wt% OM to mol/L OM
+         READ(File_Parameters,*) fact               ! factor to multiply rate cnsts to normalize everything with O2 (i.e. = 1/iox)
+         READ(File_Parameters,*) bio_fact           ! respiration constant factor relative to kdcy 
+         READ(File_Parameters,*) dif_0              ! diffusion coefficient of oxygen in cm^2/yr 
+         READ(File_Parameters,*) mo2                ! constant for monod const. 
+         READ(File_Parameters,*) kdcy               ! decay const. wt%-1 yr-1;  default 1e-1/220.e-6
+         READ(File_Parameters,*) width_3d           ! implicit width to convert system to 3D
+         READ(File_Parameters,*) shearfact          ! shear velocity factor relative to reference value  
+         READ(File_Parameters,*) corg_0             ! om conc in wt% of raining sediment particles
        CLOSE(File_Parameters)
 
    ! preliminary reading of organism data to obtain scaling parameters
@@ -1617,9 +1612,67 @@
    Type(CoOrdinates)   ::  Head_MinVal, Head_MaxVal
    real(kind=8)                :: Porosity_local
    logical             :: Isfloating
+   real(kind=8)                :: Lability_mean(4), O2_sum(4), O2_mean(4),water_mean(4) 
+   integer(kind=4) :: index, j, direction(4),Lability_sum(4), X, Y 
+   integer(kind=4)             :: N_Water(4), N_Particles(4), N_Organism(4)
 
      ToAvoid = (/1., 1., 1., 1./)  ! nothing to avoid yet
      Call Head_locate(i, Head_MinVal, Head_MaxVal)
+     
+       Lability_sum  = 0
+       Lability_mean = 0
+       N_Water   = 0
+       N_Organism  = 0
+       N_Particles = 0
+       O2_sum = 0
+       O2_mean = 0
+     
+     !calc o2mean 
+     Direction = (/0, 90, 180, 270/)
+     Do j = 1, 4 
+        index = -1                   ! index makes the search region an isoceles triangle
+
+       Select Case (Direction(j))
+         Case (0)
+         Do Y = (Head_MinVal%Y-1), Head_MinVal%Y-Org(i)%SensoryRange, -1
+           index = index+1
+           Do X = (Head_MinVal%X-index), (Head_MaxVal%X+index), 1
+             Call TabulateInfo(Y, X, j, Lability_sum, N_Particles, N_Water, N_Organism, O2_sum)
+           End do
+         End do
+
+         Case (90)
+         Do X = (Head_MaxVal%X+1), (Head_MaxVal%X+1) + Org(i)%SensoryRange, 1
+           index = index+1
+           Do Y = (Head_MinVal%Y-index), (Head_MaxVal%Y+index), 1
+             Call TabulateInfo(Y, X, j, Lability_sum, N_Particles, N_Water, N_Organism, O2_sum)
+           End do
+         End do
+
+         Case (180)
+         Do Y = (Head_MaxVal%Y+1), (Head_MaxVal%Y+1) + Org(i)%SensoryRange, 1
+           index = index+1
+           Do X = (Head_MinVal%X-index), (Head_MaxVal%X+index), 1
+             Call TabulateInfo(Y, X, j, Lability_sum, N_Particles, N_Water, N_Organism, O2_sum)
+           End do
+         End do
+
+         Case (270)
+         Do X = (Head_MinVal%X-1), (Head_MinVal%X-1) - Org(i)%SensoryRange, -1
+           index = index+1
+           Do Y = (Head_MinVal%Y-index), (Head_MaxVal%Y+index), 1
+             Call TabulateInfo(Y, X, j, Lability_sum, N_Particles, N_Water, N_Organism, O2_sum)
+           End do
+         End do
+
+       End Select
+
+       Lability_mean(j) = Real(1 + Lability_sum(j)) / Real(N_Particles(j) + 1)
+       O2_mean(j) = Real(1 + O2_sum(j)) / Real(N_water(j) + 1)
+         
+	   water_mean(j) = real(N_water(j)/(N_water(j)+N_particles(j)+N_organism(j)))
+
+     End do  
 
      ! Can we go deeper ?
        If (Possible(3) .ne. 0) then
@@ -1629,6 +1682,17 @@
                (/1., 1., 1. - ( Real(Head_MaxVal%Y-N_RowWAter)/Real(DepthDeadZone)), 1./)
                 ! linear decrease in Pr(going deeper)
          End if
+         
+         If (O2lim_on) then 
+            print *, o2_mean
+            print *, toavoid
+            Do j=1,4
+              if (o2_mean(j)<= 0.05d0) ToAvoid(j) = ToAvoid(j)*0.0001d0
+            ENDDO
+            print *,toavoid
+         ENDIF
+            
+         
        END IF
 
      ! Can we go higher ?
@@ -1798,9 +1862,9 @@
      Select Case (Matrix(Y,X)%Class)
        Case(p)
          N_Particles(j) = N_Particles(j) + 1
-           IF (Lab_real_New(Matrix(Y,X)%Value) .le. 0) then
+           IF (Lab_real_New(Matrix(Y,X)%Value,.false.) .le. 0) then
            Else
-             Lability_sum(j) = Lability_sum(j) + int(Lab_real_New(Matrix(Y,X)%Value))
+             Lability_sum(j) = Lability_sum(j) + int(Lab_real_New(Matrix(Y,X)%Value,.false.))
            End if
        Case(w)
          N_Water(j) = N_water(j) + 1
@@ -3041,7 +3105,8 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
        Particle(Particle_ID)%Pb%Time0        = Time
        
        
-       Particle(Particle_ID)%OM%OMact        = real(Lab_real(Point%Y, Point%X))
+       ! Particle(Particle_ID)%OM%OMact        = real(Lab_real(Point%Y, Point%X))
+       Particle(Particle_ID)%OM%OMact        = corg_0  ! 
        If (ASH_ON) Particle(Particle_ID)%OM%OMact = 0.
        Particle(Particle_ID)%OM%OMact_0      = Particle(Particle_ID)%OM%OMact
        Particle(Particle_ID)%OM%OM_Time0     = Time
@@ -3126,7 +3191,7 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
      Call Random_Number (URand)
        DO m = 1, ParticlesToSediment   ! the number of particle to sediment in this time frame
            ! Point = CoOrdinates(1, (Int(URand(m)*Real(N_Col))+1))   ! randomly locate the point at the top
-           Point = CoOrdinates(1, maxloc(swi,dim=1))   !
+           Point = CoOrdinates(1, maxloc(swi,dim=1))   ! point toward deepest swi (YK)
              if (.not.inmatrix(point)) then 
                 print*,'error: in particle_sediment'
                 write(file_log,*)'error: in particle_sediment'
@@ -3137,6 +3202,7 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
                RainCount = RainCount + 1
              End if
              
+             !  calculating seawater-sediment interface depth at each column (YK)
              do xx=1,n_col
                 do yy=1,n_row
                     if (matrix(yy,xx)%class==w)cycle
@@ -3355,7 +3421,7 @@ Particle2(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
 				 Particle2(Particle_ID)%loc_init=particle(particle_id)%loc_init
                  Matrix(Y_new,X) = Matrix(Y,X)
                  if (oxygen_ON) O2(Y_new, X) = O2(Y, X)
-                 DummyVariable = Lab_real_New(Particle_ID)
+                 DummyVariable = Lab_real_New(Particle_ID,.false.)
                Case(1:)    ! organism
                  Org_Loc(Matrix(Y,X)%Value, Matrix(Y,X)%Class) = Coordinates(Y_new, X)
                  Matrix(Y_new,X) = Matrix(Y,X)
@@ -3402,7 +3468,8 @@ Particle2(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
    integer(kind=4) :: xx, yy, xxx,yyy
    type(cellcontent) :: blcimg(org(i)%width)
    type(coordinates) :: blcimg_loc(org(i)%width)
-   integer(kind=4) :: blcimg_loc_x(org(i)%width),blcimg_loc_y(org(i)%width)
+   integer(kind=4) :: blcimg_loc_x(org(i)%width,2),blcimg_loc_y(org(i)%width,2)
+   logical :: flg_fin 
    
    ! if (CurrentEnergy < 1.) return
 
@@ -3412,28 +3479,42 @@ Particle2(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc_Init = PointBeside
    blcimg_loc = coordinates(0,0)
    blcimg_loc_x = 0
    blcimg_loc_y = 0
+   flg_fin = .false.
 
 Main: Do While (m .lt. Org(i)%Width)
 
        m = m + 1
 
        Call Block_read(i, Point, Orientation, N_Particle, N_Organism, N_Water)
-         If (Block_outsideMatrix) Exit Main
-         If (N_Organism .gt. 0) Exit Main
-         if (N_Particle .eq. 0) Return       ! finished
+         If (Block_outsideMatrix) then
+            flg_fin = .true.
+            Exit Main
+         endif 
+         If (N_Organism .gt. 0) then 
+            flg_fin = .true. 
+            Exit Main
+         endif 
+         if (N_Particle .eq. 0) then 
+            flg_fin = .true.
+            Return       ! finished
+         endif 
 		 
 	   if (m == 1) then   ! YK make a copy of initial block
 	      blcimg = block
 		  do o = 1, org(i)%width
 		    if (block(o)%class == p) then 
 			   blcimg_loc(o)%x = particle(block(o)%value)%loc%x
-			   blcimg_loc_x(o) = particle(block(o)%value)%loc%x
+			   blcimg_loc_x(o,1) = particle(block(o)%value)%loc%x
+			   blcimg_loc_x(o,2) = block(o)%value
+			   blcimg_loc_y(o,2) = block(o)%value
 			   blcimg_loc(o)%y = particle(block(o)%value)%loc%y
-			   blcimg_loc_y(o) = particle(block(o)%value)%loc%y
+			   blcimg_loc_y(o,1) = particle(block(o)%value)%loc%y
                ! if (blcimg_loc(o)%x==0 .or. blcimg_loc(o)%y==0)then 
-               if (blcimg_loc_x(o)==0 .or. blcimg_loc_y(o)==0)then 
-                    print*,'error in making blk img: ',time,block(o)%class,block(o)%value,blcimg_loc_x(o) ,blcimg_loc_y(o)
-                    write(file_log,*)'error in making blk img: ',time,block(o)%class,block(o)%value,blcimg_loc_x(o) ,blcimg_loc_y(o)
+               if (blcimg_loc_x(o,1)==0 .or. blcimg_loc_y(o,1)==0)then 
+                    print*,'error in making blk img: ',time,  &
+                        block(o)%class,block(o)%value,blcimg_loc_x(o,1) ,blcimg_loc_y(o,1)
+                    write(file_log,*)'error in making blk img: ',&
+                        time,block(o)%class,block(o)%value,blcimg_loc_x(o,1) ,blcimg_loc_y(o,1)
                 endif
 			end if 
 		  end do 
@@ -3655,6 +3736,8 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    ! EnergyHistory(i,1) = EnergyHistory(i,1) - 0.01   ! increment the running average
    ! CurrentEnergy = currentEnergy - 0.01
    
+   if (.not. flg_fin) then 
+   
    if (size(blcimg)/=Org(i)%width .or. size(block)/=Org(i)%width) then 
       print*,'error during push; block is wierd'
       write(File_log,*)'error during push; block is wierd'
@@ -3669,18 +3752,44 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
     endif
    enddo
    
+   
+  do o = 1, org(i)%width
+     if (blcimg_loc_x(o,2) /=blcimg_loc_y(o,2)) then 
+       print *,'error after making blk; values mismatch'
+       write(file_log,*)'error after making blk; values mismatch'
+       stop
+       call Output_txtImg()
+     endif
+     
+     if (blcimg_loc_x(o,2)==0 .or. blcimg_loc_y(o,2)==0) cycle 
+     
+     if (blcimg_loc_x(o,1)==0 .or. blcimg_loc_y(o,1)==0)then 
+            print*,'error after making blk img: ',&
+                time,block(o)%class,block(o)%value,blcimg_loc_x(o,1) ,blcimg_loc_y(o,1) &
+                ,blcimg_loc_x(o,2) ,blcimg_loc_y(o,2)
+            write(file_log,*)'error after making blk img: ',&
+                time,block(o)%class,block(o)%value,blcimg_loc_x(o,1) ,blcimg_loc_y(o,1) &
+                ,blcimg_loc_x(o,2) ,blcimg_loc_y(o,2)
+            stop
+            call Output_txtImg()
+     endif
+  end do 
+   
    do o = 1, org(i)%width
      if (blcimg(o)%class/=p) cycle
      if (blcimg(o)%value >= N_col*N_row) then 
         print *,'error during particle push',blcimg(o)%class,blcimg(o)%value
         write(File_log,*) 'error during particle push',blcimg(o)%class,blcimg(o)%value
      endif
-     xx = particle(blcimg(o)%value)%loc%x
-     yy = particle(blcimg(o)%value)%loc%y
+     xx = particle(blcimg(o)%value)%loc%x  ! x of moved particle 
+     yy = particle(blcimg(o)%value)%loc%y  ! y 
      ! xxx = blcimg_loc(o)%x
      ! yyy = blcimg_loc(o)%y
-     xxx = blcimg_loc_x(o)
-     yyy = blcimg_loc_y(o)
+     do k=1, org(i)%width
+       if (blcimg_loc_x(k,2)==blcimg(o)%value) exit
+     enddo 
+     xxx = blcimg_loc_x(k,1)      !  x of 
+     yyy = blcimg_loc_y(k,1)
      if (xx==0 .or. yy==0 .or. xxx==0 .or. yyy==0) then 
      if (.not. any( Particle_ID_free == blcimg(o)%value)) then 
      print*,'error in pushing; time, i, o, xx, yy, class, value ',time, i, o, xx, yy,xxx,yyy &
@@ -3688,6 +3797,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
     print*,Particle_ID_free(:)
      write(file_log,*)'error in pushing; time, i, o, xx, yy, class, value ',time, i, o, xx, yy,xxx,yyy &
         ,blcimg(o)%class,blcimg(o)%value
+     call Output_txtImg()
      stop
      endif
      endif
@@ -3707,7 +3817,9 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 		end if 
 	end if 
    end do 
- 
+   
+   endif 
+   
          if (errChk) then 
          call Make_matrix_chk('Psh')
          if (errDetect) then; print *,time, "err after push"; write(file_log,*)time, "err after push"; end if 
@@ -4413,7 +4525,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
      do x = 1, n_col
      
      if (Matrix(y,x)%class == p) then 
-       aaa= Lab_real_new(Matrix(y,x)%value)
+       aaa= Lab_real_new(Matrix(y,x)%value,.true.)
      end if 
      
      end do 
@@ -5138,7 +5250,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
            Particle_ID = Matrix(Y,X)%Value
            part_rowsum = part_rowsum + 1
            act_rowsum = act_rowsum + Activity_New(Particle_ID)
-           Particle_Lability = Lab_real_New(Particle_ID)
+           Particle_Lability = Lab_real_New(Particle_ID,.false.)
 		   
              If (Particle_Lability .gt. 0) lab_rowsum_real = lab_rowsum_real + Particle_Lability 
 
@@ -6028,7 +6140,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
   ! *********************
 
-   Function Lab_real_New(ID)
+   Function Lab_real_New(ID,flg_decay)
      ! returns the Lability after probabilistic degradation
 
    Use GlobalVariables
@@ -6039,6 +6151,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    real(kind=8) :: lab_decay
    real(kind=8) :: fact_law1, fact_law2
    real(kind=8) merge2
+   logical,intent(IN) :: flg_decay
    
    logical :: inMatrix, IsParticle
    
@@ -6063,6 +6176,8 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
          Return
        END IF
 	   
+       
+     if (flg_decay) then 
            TimeIncrement = Real(Time - Particle(ID)%OM%OM_Time0,kind=8) * TimeScale / 365.d0   !  (yr)
            
            Pr_Cummulative = kdcy*TimeIncrement*Lab_real 
@@ -6269,7 +6384,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
              Pr_Cummulative/(TimeScale/365.)&
       * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y,particle(ID)%loc%X-1)%Oxygen<=mo2/iox)
              
-    O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen_use = &
+    O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen_use = &
              O2(particle(ID)%loc%Y+1,particle(ID)%loc%X)%Oxygen_use + &
              Pr_Cummulative/(TimeScale/365.)&
       * merge(1d0/mo2,1d0,fact_law1 == 1d0 .and. O2(particle(ID)%loc%Y-1,particle(ID)%loc%X)%Oxygen<=mo2/iox)
@@ -6315,7 +6430,7 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
              )*iox/OM_uni
       end if
     end if
-   
+    
     ! in units of /yr
     
              Particle(ID)%OM%OM_Time0 = Time
@@ -6333,6 +6448,8 @@ ChooseDir:  Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
              ! Particle(ID)%OM%OMact = Lab_real_New
      
      ! end if 
+    
+    endif
            
    End Function Lab_real_New
 

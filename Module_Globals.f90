@@ -36,6 +36,7 @@
    logical, save :: trans_making    !!!  YK
    logical, save :: Long_run    !!!  YK
    logical, save :: Het_sed    !!!  YK
+   logical, save :: O2lim_on 
 
    integer(kind=4), Save :: N_Ind, N_Row, N_Col, N_Cell, Buffer_Zone, N_RowWater, N_RowSed, N_LabilityClasses
    integer(kind=4), Save :: Total_N_Particles, Total_N_Particles0, ParticleTolerance
@@ -188,19 +189,7 @@
    integer(kind=4), Parameter :: File_Diet = 19, File_Core = 29, File_Core_M = 39, File_Core_L = 49, File_Core_A = 59, File_pop = 55
    integer(kind=4),parameter  :: File_sedrate = 18
    
-   real(kind=8), parameter :: po_particle = 0.9
-   real(kind=8), parameter :: pal = 1d0
-   real(kind=8), parameter :: iox = 220.d-6 ! mol/L
-   real(kind=8), parameter :: OM_uni = 0.833d0 ! mol/L/wt%: conversion of wt% OM to mol/L OM
-   real(kind=8), parameter :: fact = 1d0/220.d-6   ! YK factor to multiply rate cnsts to normalize everything with O2 (i.e. = 1/iox)
-   real(kind=8), parameter :: bio_fact = 1d4  ! default 1e4  
-   ! real(kind=8), parameter :: bio_fact = 1d3  ! High rxn option  
-   real(kind=8), parameter :: dif_0 = 387.8928d0 ! cm^2/yr
-   real(kind=8), parameter :: mo2 = 8d-6 ! mol/L
-   real(kind=8), parameter :: kdcy = 1d-1/220.d-6 ! wt%-1 yr-1;  default 1e-1/220.e-6
-   ! real(kind=8), parameter :: kdcy = 1d-1/220.d-7 ! wt%-1 yr-1;  High rxn option 
-   real(kind=8), parameter :: width_3d = 0.25d0 ! cm
-   real(kind=8), parameter :: shearfact = 1d0
+   real(kind=8), save :: pal ,iox , OM_uni ,fact , bio_fact , dif_0 ,mo2 ,kdcy ,width_3d ,shearfact , corg_0 
    
    !  Summary of the structure of the User defined types
    !

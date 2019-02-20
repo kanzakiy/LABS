@@ -76,7 +76,9 @@ contains
    integer(kind=4) :: x, y
    real(kind=8) :: porosity 
    logical :: O2_sat_initial
-   real(kind=8) :: oxup = pal
+   real(kind=8) :: oxup 
+   
+   oxup = pal
    
    if (time==0)  print*,oxup,pal
    
@@ -268,7 +270,7 @@ contains
    
    real(kind=8) :: tmpU,tmpV
    real(kind=8), allocatable :: tmpO2(:,:)
-   real(kind=8) :: oxup = pal
+   real(kind=8) :: oxup 
    real(kind=8) :: maxedif
    
    logical :: divide = .false.
@@ -290,6 +292,8 @@ contains
    real(kind=8) :: do2dt
    real(kind=8) :: TotOrgDecay_tmp, TotResp_tmp, TotO2Dif_tmp
    real(kind=8) :: TotAbio_tmp, TotO2Adv_tmp, do2dt_tmp, resO2_tmp
+   
+   oxup = pal
    
    
    if (time==0) print*,oxup,pal
