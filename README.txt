@@ -31,7 +31,7 @@ To modify food control on organisms to change the burrow density in LABS (Fig. 2
 To simulate oxygen reactive transport, you need switch on 'oxygen_ON' (i.e.,oxygen_ON =.true.) in eParameters_IN.txt.
 To calculate advective water flow, you need switch on 'flow_ON' (i.e.,flow_ON =.true.) in eParameters_IN.txt.
 
-More specifically, to simulate individual runs in Section 3, you need following changes in the codes.
+More specifically, to simulate individual runs in Section 3, you need following changes in input files.
 
 ~~~Section 3.1~~~
 (a)  oxygen_ON = .true., flow_ON = true. (in eParameters_IN.txt)       
