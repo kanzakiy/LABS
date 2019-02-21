@@ -20,23 +20,10 @@
    Logical, Save :: Lability_ON, Block_outsideMatrix, LocalMixing
    Logical, Save :: Sedimentation_ON, Movies_on, DepthAvoidance_on
    Logical, Save :: SaveData, PlotMatrix, PlotPorosity, PlotActivity,OutputScaling
-   logical, save :: oxygen_ON   !!! YK
-   logical, save :: oxFB_ON   !!! YK
-   logical, save :: Resp_ON   !!! YK
-   logical, save :: only_sed  !!! YK
-   logical, save :: errDetect !!!  YK
-   logical, save :: errChk    !!!  YK
-   logical, save :: I_shape    !!!  YK
-   logical, save :: flow_ON    !!!  YK
-   logical, save :: Detail_Log    !!!  YK
-   logical, save :: Ash_ON    !!!  YK
-   logical, save :: Incl_ASH    !!!  YK
-   logical, save :: Mod_Pop    !!!  YK
-   logical, save :: non_Pop    !!!  YK
-   logical, save :: trans_making    !!!  YK
-   logical, save :: Long_run    !!!  YK
-   logical, save :: Het_sed    !!!  YK
-   logical, save :: O2lim_on 
+   !  added parameters to eLABS
+   logical, save :: oxygen_ON, oxFB_ON, Resp_ON , only_sed ,errDetect ,errChk , I_shape 
+   logical, save :: flow_ON, Detail_Log ,Ash_ON  ,Incl_ASH, Mod_Pop,non_Pop,trans_making 
+   logical, save :: Long_run,  O2lim_on 
 
    integer(kind=4), Save :: N_Ind, N_Row, N_Col, N_Cell, Buffer_Zone, N_RowWater, N_RowSed, N_LabilityClasses
    integer(kind=4), Save :: Total_N_Particles, Total_N_Particles0, ParticleTolerance
@@ -44,20 +31,18 @@
    integer(kind=4), Save :: RainCount, PointerToFreeParticle, ParticlesToSediment_y, Time_Sediment
    integer(kind=4), Save :: TimeMin, TimeMax, TimeStep, RandSeed, DEPTHTOCONSTRAIN, MissingValue, WindowSize
    integer(kind=4), Save :: Time, Day, Year
-   integer(kind=4), Save :: Savetime  !  added -------- YK 5/22/2017
-   integer(kind=4), save :: y_int       !! YK
-   integer(kind=4), save :: Org_ID_ishape       !! YK
-   integer(kind=4), save :: PopTot       !! YK
+   !  added 
+   integer(kind=4), Save :: Savetime ,y_int, Org_ID_ishape , PopTot       
 
    real(kind=8), Save    :: TimeScale, PixelSize, Porosity0, POROSITY_THRESHOLD, Porosity_DecayRate, Tolerance
    real(kind=8), Save    :: SedimentationRate, SedRate, DecayConstant, AspectRatio
    real(kind=8), Save    :: Pr_Activity_day, Pr_Activity_year
    real(kind=8), Save    :: AREA_Total
-   real(kind=8), Save    :: TotOrgDecay, TotResp, TotO2Dif, TotAbio, TotO2Adv   !! YK
+   ! added 
+   real(kind=8), Save    :: TotOrgDecay, TotResp, TotO2Dif, TotAbio, TotO2Adv   
    real(kind=8), save    :: totO2, pretotO2, reso2
-   real(kind=8), save    :: Time_Ash       !! YK
-   real(kind=8), save    :: Ash_thickness       !! YK
-   real(kind=8), save    :: Ash_porosity       !! YK
+   real(kind=8), save    :: Time_Ash , Ash_thickness , Ash_porosity    
+   real(kind=8), save    :: pal ,iox , OM_uni ,fact , bio_fact , dif_0 ,mo2 ,kdcy ,width_3d ,shearfact , corg_0 
 
    Character*3   :: Porosity_Type
    Character*14  :: CurrentTime
@@ -189,7 +174,6 @@
    integer(kind=4), Parameter :: File_Diet = 19, File_Core = 29, File_Core_M = 39, File_Core_L = 49, File_Core_A = 59, File_pop = 55
    integer(kind=4),parameter  :: File_sedrate = 18
    
-   real(kind=8), save :: pal ,iox , OM_uni ,fact , bio_fact , dif_0 ,mo2 ,kdcy ,width_3d ,shearfact , corg_0 
    
    !  Summary of the structure of the User defined types
    !
