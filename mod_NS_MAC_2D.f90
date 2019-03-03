@@ -156,7 +156,7 @@ B = 100*B
 
 !!!! check the read file
 if ((rec_binary).and.(time>18700)) then 
-	open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-BI-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-BI-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (B(xx,yy), xx = 1,nx)
@@ -429,21 +429,21 @@ end where
 
 !!!! check the connected bindaries
 if ((rec_binary)) then 
-	open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-UP-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-UP-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (UP(xx,yy), xx = 1,nx)
 	end do 
 	close(100)
 
-	open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-DOWN-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-DOWN-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (DOWN(xx,yy), xx = 1,nx)
 	end do 
 	close(100)
 
-	open(unit = 100, file = trim(adjustl(today))//'data/test2d(F)-CONN-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'o2/test2d(F)-CONN-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (CONN(xx,yy), xx = 1,nx)
@@ -569,14 +569,14 @@ end if
 				
 ! check the type-classified map
 if (rec_binary) then 
-	open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-Tp-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-Tp-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny+2
 		write(100,*) (Tp(xx,yy), xx = 1,nx)
 	end do 
 	close(100)
 
-	open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-Tp2-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-Tp2-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny+2
 		write(100,*) (Tp2(xx,yy), xx = 1,nx)
@@ -1198,28 +1198,28 @@ endif
 
 ! check matrix file vs type/binary files
 if (chk_particles .and. flg_stop) then 
-	open(unit = 100, file = trim(adjustl(today))//'/data/matrix-class-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/o2/matrix-class-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (matrix(yy,xx)%class, xx = 1,nx)
 	end do 
 	close(100)
     
-	open(unit = 100, file = trim(adjustl(today))//'/data/Tp(nxxny)-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/o2/Tp(nxxny)-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 2,ny+1
 		write(100,*) (Tp(xx,yy), xx = 1,nx)
 	end do 
 	close(100)
 
-	open(unit = 100, file = trim(adjustl(today))//'/data/Tp2(nxxny)-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/o2/Tp2(nxxny)-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 2,ny+1
 		write(100,*) (Tp2(xx,yy), xx = 1,nx)
 	end do 
 	close(100)
 
-	open(unit = 100, file = trim(adjustl(today))//'/data/B2(nxxny)-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/o2/B2(nxxny)-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 2,ny+1
 		write(100,*) (B2(xx,yy), xx = 1,nx)
@@ -1274,13 +1274,13 @@ Vm = Vg
 Pc = Pg
 Dc = Dg
 
-open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-Um-'  & 
+open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-Um-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
 do yy = 1,ny+2
 	write(100,*) (Um(xx,yy), xx = 1,nx+1)
 end do 
 close(100)
-open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-Vm-'  & 
+open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-Vm-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
 do yy = 1,ny+2+1
 	write(100,*) (Vm(xx,yy), xx = 1,nx)
@@ -1314,19 +1314,19 @@ do xx = 1, nx
 	end do 
 end do
 
-open(unit = 100, file = trim(adjustl(today))//'/data/test2d(F)-Uc-'  & 
+open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-Uc-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 200, file = trim(adjustl(today))//'/data/test2d(F)-Vc-'  & 
+open(unit = 200, file = trim(adjustl(today))//'/o2/test2d(F)-Vc-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 300, file = trim(adjustl(today))//'/data/test2d(F)-Pc-'  & 
+open(unit = 300, file = trim(adjustl(today))//'/o2/test2d(F)-Pc-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 400, file = trim(adjustl(today))//'/data/test2d(F)-Dc-'  & 
+open(unit = 400, file = trim(adjustl(today))//'/o2/test2d(F)-Dc-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 500, file = trim(adjustl(today))//'/data/test2d(F)-vabs-'  & 
+open(unit = 500, file = trim(adjustl(today))//'/o2/test2d(F)-vabs-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 600, file = trim(adjustl(today))//'/data/test2d(F)-Qcx-'  & 
+open(unit = 600, file = trim(adjustl(today))//'/o2/test2d(F)-Qcx-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 700, file = trim(adjustl(today))//'/data/test2d(F)-Qcy-'  & 
+open(unit = 700, file = trim(adjustl(today))//'/o2/test2d(F)-Qcy-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
 do yy = 2,ny+1
 	write(100,*) (Uc(xx,yy), xx = 1,nx)

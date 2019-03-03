@@ -32,7 +32,7 @@
    integer(kind=4), Save :: TimeMin, TimeMax, TimeStep, RandSeed, DEPTHTOCONSTRAIN, MissingValue, WindowSize
    integer(kind=4), Save :: Time, Day, Year
    !  added 
-   integer(kind=4), Save :: Savetime ,y_int, Org_ID_ishape , PopTot       
+   integer(kind=4), Save :: Savetime ,y_int, Org_ID_ishape , PopTot, Time_addpop, Time_dif_st, Time_dif_rec       
 
    real(kind=8), Save    :: TimeScale, PixelSize, Porosity0, POROSITY_THRESHOLD, Porosity_DecayRate, Tolerance
    real(kind=8), Save    :: SedimentationRate, SedRate, DecayConstant, AspectRatio
@@ -79,12 +79,12 @@
      Type(Tracer)      :: Pb
      Type(Tracer_OM)      :: OM
      ! Type(Tracer_Ash)      :: Ash
-     Type(Coordinates) :: Loc, Loc_Init
+     Type(Coordinates) :: Loc, Loc_Init, Loc_prev
    End Type Particle_Char
    
    Type Particle_Char2
      Type(Tracer_Ash)      :: Ash
-     Type(Coordinates) :: Loc, Loc_Init
+     Type(Coordinates) :: Loc, Loc_Init, Loc_prev
    End Type Particle_Char2
 
    Type Intake
@@ -132,27 +132,21 @@
    Type(Particle_Char), Allocatable, Save  :: Particle(:)
    Type(Organism_Char), Allocatable, Save  :: Org(:)
    Type(Particle_Char2), Allocatable, Save  :: Particle2(:)
-   
-   Type(oxygen_conc), Allocatable, Save    :: O2(:,:)  !! YK
-   Type(CellContent), Allocatable, Save    :: Matrix_chk(:,:)  !! YK
-   Type(coordinates), Allocatable, Save    :: flow_loc(:,:)  !! YK
+   ! added
+   Type(oxygen_conc), Allocatable, Save    :: O2(:,:)  
+   Type(CellContent), Allocatable, Save    :: Matrix_chk(:,:)  
+   Type(coordinates), Allocatable, Save    :: flow_loc(:,:)  
 
 
    real(kind=8), Allocatable, Save                 :: Lability_decayConstant(:), Lability_proportion(:)
    integer(kind=4), Allocatable, Save              :: Particle_ID_free(:), MatrixOccupancy(:), Time_output(:), Time_output2(:)
    integer(kind=4), Allocatable, Save              :: IngestionHistory(:,:), MovementHistory(:,:)
-   integer(kind=4), Allocatable, Save              :: RespHistory(:,:)   !! YK 
-   integer(kind=4), Allocatable, Save              :: EgestHistory(:,:)   !! YK 
-   integer(kind=4), Allocatable, Save              :: Dir_rec(:,:)   !! YK 
-   integer(kind=4), Allocatable, Save              :: swi(:)   !! YK 
-   real(kind=8), Allocatable, Save                 :: Ub(:,:),Vb(:,:)   !! YK 
-   real(kind=8), allocatable, save                 :: Ug(:,:), Vg(:,:), Pg(:,:), Dg(:,:)  !!  YK matrix recording velocity info
-   real(kind=8), allocatable, save                 :: Uo(:,:), Vo(:,:)  !!  YK matrix recording velocity info for oxygen concentration calc
-   real(kind=8), allocatable, save                 :: edif(:,:) 
-   real(kind=8), allocatable, save                 :: EnergyHistory(:,:), CurrentEnergy(:)  !! YK 
-   real(kind=8), allocatable, save                 :: RespCnst(:)  !! YK 
-   integer(kind=4), allocatable, save              :: DeathFlg(:)    !!!  YK
-   integer(kind=4), allocatable, save              :: PopLogID(:)    !!!  YK
+   ! added 
+   integer(kind=4), Allocatable, Save              :: RespHistory(:,:), EgestHistory(:,:), Dir_rec(:,:) , swi(:)      
+   integer(kind=4), allocatable, save              :: DeathFlg(:), PopLogID(:)    
+   real(kind=8), Allocatable, Save                 :: Ub(:,:),Vb(:,:), Ug(:,:), Vg(:,:), Pg(:,:), Dg(:,:)  
+   real(kind=8), allocatable, save                 :: Uo(:,:), Vo(:,:), edif(:,:) 
+   real(kind=8), allocatable, save                 :: EnergyHistory(:,:), CurrentEnergy(:), RespCnst(:)
 
    ! global colour definitions
 
@@ -172,7 +166,7 @@
    integer(kind=4), Parameter :: poly_fit = 100
    
    integer(kind=4), Parameter :: File_Diet = 19, File_Core = 29, File_Core_M = 39, File_Core_L = 49, File_Core_A = 59, File_pop = 55
-   integer(kind=4),parameter  :: File_sedrate = 18
+   integer(kind=4),parameter  :: File_sedrate = 18, File_profile_st = 88, File_dbio_st = 77
    
    
    !  Summary of the structure of the User defined types

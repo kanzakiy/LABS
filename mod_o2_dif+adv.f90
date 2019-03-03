@@ -19,7 +19,7 @@ contains
     
    write(numtemp,'(i10.1)') Time
    
-   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/O2data-'          &
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/o2/O2data-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO Y = 1, N_row
      txtimg = 0 
@@ -30,7 +30,7 @@ contains
      END Do
    Close(File_txtimg)
    
-   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/O2_use_data-'          &
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/o2/O2_use_data-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO Y = 1, N_row
      txtimg = 0 
@@ -41,7 +41,7 @@ contains
      END Do
    Close(File_txtimg)
    
-   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/O2_chan_data-'          &
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/o2/O2_chan_data-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO Y = 1, N_row
      txtimg = 0 
@@ -52,7 +52,7 @@ contains
      END Do
    Close(File_txtimg)
    
-   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/data/O2_dif-'          &
+   OPEN(unit = File_txtImg, File = trim(adjustl(today))//'/o2/O2_dif-'          &
                         //trim(adjustl(numtemp))//'.txt', status = 'unknown')
      DO Y = 1, N_row
      txtimg = 0 
