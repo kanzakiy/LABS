@@ -1,6 +1,6 @@
 false  	OUTPUT IS a Movie (true) or user defined (false)
 true 	Depth avoidance is on (true) or off (false)
-TRUE	Turn lability functions on (true) or off (false)
+true	Turn lability functions on (true) or off (false)
 true 	Turn sedimentation functions on (true) or off (false)
 false  	Force local mixing (true) or non-local mixing (false)
 True   	save data to disk?
