@@ -1077,25 +1077,25 @@ if (mtx_chk) then
 
     open(500, file="chck_ap.txt", status = 'unknown')
     do j = 1, n+1
-    write(500,*) ap(j)
+        write(500,*) ap(j)
     end do 
     close(500)
 
     open(500, file="chck_ai.txt", status = 'unknown')
     do j = 1, nnz
-    write(500,*) ai(j)
+        write(500,*) ai(j)
     end do 
     close(500)
 
     open(500, file="chck_ax.txt", status = 'unknown')
     do j = 1, nnz
-    write(500,*) ax(j)
+        write(500,*) ax(j)
     end do 
     close(500)
 
     open(500, file="chck_b.txt", status = 'unknown')
     do j = 1, n
-    write(500,*) b(j)
+        write(500,*) b(j)
     end do 
     close(500)
 
