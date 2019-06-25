@@ -1,7 +1,7 @@
 1.0             PAL
 220e-6          iox
 0.833           OM_uni
-4545.454545     fact (1/220e-6 detault )
+4545.454545     fact (1/220e-6 = 4545.454545 detault )
 1e4             bio_fact (1e4 default) 
 387.8928        dif_0 
 8e-6            mo2  

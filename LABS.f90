@@ -406,12 +406,6 @@
             call Output_txtImg_chk()
             O2%oxygen_use = 0.0
           
-            if (trans_making) then 
-               call organism_dead(1,.true.)
-               call make_trans()
-               call addpop()
-            endif
-          
             Savetime = savetime + 1       
             TimeToOutput = .false.                  ! turn off output until the next output time
          End if
@@ -422,6 +416,15 @@
          call Output_stats_ST()
       endif 
       ! +++ 
+      
+      !++++ creating transition matrix and recording
+      if (trans_making) then 
+         if (mod(Time, Time_dif_rec)==0) then 
+            call organism_dead(1,.true.)
+            call make_trans()
+            call addpop()
+         endif 
+      endif
 		   
            !  ~~~~~~~~~~~~~~~~~~~~  population modification 
       if (Mod_Pop) then 
@@ -4994,6 +4997,8 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
       read(file_temp,*) dz(yy)
    enddo 
    close(File_temp)
+   
+   ! dz = dz*3d0  
 
    !                   -----------  layer0_min
    !          y_int ----------
