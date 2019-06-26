@@ -542,7 +542,7 @@
    Use GlobalVariables
    implicit none
    Character*1 :: FeedingType
-   integer(kind=4) :: i, j, n, MaxOrgSize, MaxGutCapacity, MinHeadWidth, Lability_tmp
+   integer(kind=4) :: i, j, n, MaxOrgSize, MaxGutCapacity, MinHeadWidth, Lability_tmp, nx_flow, ny_flow
    real(kind=8) :: MatrixDepth, MatrixWidth, Depth_DeadZone, HalfLife
    real(kind=8) :: r_TimeMin, r_TimeMax, r_TimeStep
    real(kind=8) :: ParticleDensity, PArticleSize, Sum_Lability, MaxOrgSpeed, MinWidth, MaxWidth
@@ -610,6 +610,7 @@
    READ(File_Parameters,*) width_3d           ! implicit width to convert system to 3D
    READ(File_Parameters,*) shearfact          ! shear velocity factor relative to reference value  
    READ(File_Parameters,*) corg_0             ! om conc in wt% of raining sediment particles
+   READ(File_Parameters,*) flw_rsltn          ! a factor to increase the resolution of flow calculation 
    CLOSE(File_Parameters)
 
    ! preliminary reading of organism data to obtain scaling parameters
@@ -783,7 +784,9 @@
    allocate (Dir_rec(Day,N_IND))
    allocate (Ub(2,N_ind), Vb(2,N_ind)) !  in flow subroutines, coodinate is listed in order of x, y
    allocate (flow_loc(2,N_ind)) !  in flow subroutines, coodinate is listed in order of x, y
-   allocate (Ug(N_col+1,N_row+2),Vg(N_col,N_row+2+1), Pg(N_col,N_row+2), Dg(N_col,N_row+2)) 
+   nx_flow = n_col*flw_rsltn
+   ny_flow = n_row*flw_rsltn
+   allocate (Ug(nx_flow+1,ny_flow+2),Vg(nx_flow,ny_flow+2+1), Pg(nx_flow,ny_flow+2), Dg(nx_flow,ny_flow+2)) 
    allocate (Uo(N_col,N_row),Vo(N_col,N_row))
    allocate (edif(n_row, n_col)) 
    allocate (DeathFlg(N_Ind)) 

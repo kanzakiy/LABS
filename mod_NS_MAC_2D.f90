@@ -94,10 +94,13 @@ logical :: chk_particles = .true.
 logical :: flg_stop = .false.
 
 character*21 numtemp
+integer(kind=4) xxx,yyy, x_tmp, y_tmp
 !---------------------------
 write(numtemp,'(i10.1)') Time
 !  allocate 
-nx = n_col; ny = n_row; ntc = nx*(ny+2)
+nx = n_col*flw_rsltn
+ny = n_row*flw_rsltn
+ntc = nx*(ny+2)
 if (.not.allocated(B)) allocate(B(nx,ny))
 if (.not.allocated(UP)) allocate(UP(nx,ny))
 if (.not.allocated(DOWN)) allocate(DOWN(nx,ny))
@@ -121,7 +124,7 @@ if (.not.allocated(Fc)) allocate(Fc(nx,ny+2))
 if (.not.allocated(Gc)) allocate(Gc(nx,ny+2))
 if (.not.allocated(Rc)) allocate(Rc(nx,ny+2))
 
-delh = pixelsize
+delh = pixelsize/flw_rsltn
 delx = delh
 dely = delh
 delt = delh/2.0d0
@@ -131,9 +134,15 @@ VelC = pixelsize/timescale/24.0d0/60.0d0/60.0d0  ! cm/s
 ! reading file
 if (.not.simple_test) then
 	B = 0
-	do xx = 1, nx
-		do yy = 1, ny
-			if (matrix(yy,xx)%class == p) B(xx,yy) = 1
+	do xx = 1, nx/flw_rsltn
+		do yy = 1, ny/flw_rsltn
+			if (matrix(yy,xx)%class == p) then 
+                if (flw_rsltn/=1) then 
+                    B((xx-1)*flw_rsltn+1:(xx-1)*flw_rsltn +1+ flw_rsltn-1,(yy-1)*flw_rsltn+1:(yy-1)*flw_rsltn+1+ flw_rsltn-1) = 1
+                elseif(flw_rsltn ==1) then 
+                    B(xx,yy) = 1
+                endif 
+            endif 
 		end do 
 	end do 
 end if 
@@ -147,7 +156,7 @@ if (simple_test) then
 			xx = int(1+rdm(1)*nx)
 			yy = int(1+rdm(2)*ny)
 			if (B(xx,yy) ==0) B(xx,yy) = 1
-		end do
+	    end do
 	end if 
 end if 
 
@@ -554,9 +563,13 @@ if (.not. random_choice) then
 			if ((Vb(pp,i) /= 0).or.(Ub(pp,i) /= 0)) then 
 				xx = flow_loc(pp,i)%X
 				yy = flow_loc(pp,i)%Y
-				Tp(xx,yy+1) = 900
+                if (flw_rsltn == 1) then 
+                    Tp(xx,yy+1) = 900
+                elseif (flw_rsltn/=1) then 
+                    Tp((xx-1)*flw_rsltn+1,(yy-1)*flw_rsltn+1+1) = 900
+                endif 
                 ! print*, xx,yy,matrix(yy,xx)%class
-				if (matrix(yy,xx)%class /= i) then 
+                if (matrix(yy,xx)%class /= i) then 
                   print *, '+++ error in flow boundary +++'
                   write(File_log,*) '+++ error in flow boundary +++ (x,y)=',xx,yy,'class = ',matrix(yy,xx)%class 
                   flg_stop=.true.
@@ -661,8 +674,15 @@ n = np ! number of row
 allocate (ai(nnz),ap(n+1),ax(nnz),bx(n),kai(n))
 
 ! set all initial values at zero
-Pc = 0.0d0; Uc = 0.0d0; Vc = 0.0d0; Um = 0.0d0; Vm = 0.0d0
-Dc = 0.0d0; Fc = 0.0d0; Gc = 0.0d0; Rc = 0.0d0 
+Pc = 0.0d0
+Uc = 0.0d0
+Vc = 0.0d0
+Um = 0.0d0
+Vm = 0.0d0
+Dc = 0.0d0
+Fc = 0.0d0
+Gc = 0.0d0
+Rc = 0.0d0 
 
 ! start calculation 
 step = 0
@@ -700,8 +720,15 @@ do while (step < nstep)
 			
 			if (Tp(xx,yy) == 900) then ! const flow in any direction
 				ppp = 0
+                if (flw_rsltn==1) then 
+                    xxx = xx
+                    yyy = yy - 1
+                elseif (flw_rsltn/=1) then 
+                    xxx = (xx -1)/flw_rsltn + 1
+                    yyy = (yy- 1 - 1)/flw_rsltn + 1
+                endif 
 				do pp = 1,2
-					if ((Vb(pp,matrix(yy-1,xx)%class)==0).and.(Ub(pp,matrix(yy-1,xx)%class)==0)) cycle
+					if ((Vb(pp,matrix(yyy,xxx)%class)==0).and.(Ub(pp,matrix(yyy,xxx)%class)==0)) cycle
 					ppp = pp
 				end do 
 				if (ppp == 0) then 
@@ -709,10 +736,10 @@ do while (step < nstep)
                     write(File_log, *) time, 'error to set boundary 900',xx,yy
                     flg_stop = .true.
                 endif
-                if (B2(xp,yy) == 0) Um(xp,yy) = Ub(ppp,matrix(yy-1,xx)%class)*VelC
-                if (B2(xg,yy) == 0) Um(xg+1,yy) = Ub(ppp,matrix(yy-1,xx)%class)*VelC
-                if (B2(xx,yp) == 0) Vm(xx,yp) = Vb(ppp,matrix(yy-1,xx)%class)*VelC
-                if (B2(xx,yg) == 0) Vm(xx,yg+1) = Vb(ppp,matrix(yy-1,xx)%class)*VelC
+                if (B2(xp,yy) == 0) Um(xp,yy) = Ub(ppp,matrix(yyy,xxx)%class)*VelC
+                if (B2(xg,yy) == 0) Um(xg+1,yy) = Ub(ppp,matrix(yyy,xxx)%class)*VelC
+                if (B2(xx,yp) == 0) Vm(xx,yp) = Vb(ppp,matrix(yyy,xxx)%class)*VelC
+                if (B2(xx,yg) == 0) Vm(xx,yg+1) = Vb(ppp,matrix(yyy,xxx)%class)*VelC
 			end if 
             
 			if (B2(xx,yy)==100) then 
@@ -1101,11 +1128,28 @@ do while (step < nstep)
           if (yy==1 .or. yy==ny+2) then
             cycle
           else 
-            if (matrix(yy-1,xx)%class==p) then 
-               write(*,*) time,"error: P is calculated on particles x,y=",xx,yy
-               write(File_log,*) time,"error: P is calculated on particles x,y=",xx,yy
-               flg_stop=.true.
-               ! stop
+            if (flw_rsltn==1) then 
+                if (matrix(yy-1,xx)%class==p) then 
+                   write(*,*) time,"error: P is calculated on particles x,y=",xx,yy
+                   write(File_log,*) time,"error: P is calculated on particles x,y=",xx,yy
+                   flg_stop=.true.
+                   ! stop
+                endif 
+            elseif (flw_rsltn/=1) then 
+                do x_tmp = 1,flw_rsltn
+                    if (mod(xx-x_tmp,flw_rsltn)==0) exit 
+                enddo 
+                do y_tmp = 1,flw_rsltn
+                    if (mod(yy-y_tmp-1,flw_rsltn)==0) exit 
+                enddo 
+                xxx = (xx-x_tmp)/flw_rsltn + 1
+                yyy = (yy-y_tmp-1)/flw_rsltn + 1
+                if (matrix(yyy,xxx)%class==p) then 
+                   write(*,*) time,"error: P is calculated on particles x,y=",xxx,yyy
+                   write(File_log,*) time,"error: P is calculated on particles x,y=",xxx,yyy
+                   flg_stop=.true.
+                   ! stop
+                endif 
             endif 
           endif
         endif
@@ -1175,19 +1219,36 @@ Pg = Pc
 Dg = Dc
 Uc(:,:) = (Um(1:nx,:) + Um(2:nx+1,:))/2.0d0
 Vc(:,:) = (Vm(:,1:ny+2) + Vm(:,2:ny+3))/2.0d0 
-Uo(:,:) = Uc(:,2:ny+1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
-Vo(:,:) = Vc(:,2:ny+1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+if (flw_rsltn == 1) then 
+    Uo(:,:) = Uc(:,2:ny+1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+    Vo(:,:) = Vc(:,2:ny+1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+elseif (flw_rsltn/=1) then 
+    do yy=1,ny/flw_rsltn
+        do xx=1,nx/flw_rsltn
+            Uo(xx,yy) = 0
+            Vo(xx,yy) = 0
+            do xxx=1,flw_rsltn
+                do yyy = 1,flw_rsltn
+                    Uo(xx,yy) = Uo(xx,yy) + Uc((xx-1)*flw_rsltn+1+xxx-1,(yy-1)*flw_rsltn+1+1+yyy-1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+                    Vo(xx,yy) = Vo(xx,yy) + Vc((xx-1)*flw_rsltn+1+xxx-1,(yy-1)*flw_rsltn+1+1+yyy-1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+                enddo
+            enddo
+            Uo(xx,yy) = Uo(xx,yy)/flw_rsltn/flw_rsltn
+            Vo(xx,yy) = Vo(xx,yy)/flw_rsltn/flw_rsltn
+        enddo
+    enddo
+endif
 if (chk_particles) then 
-  do yy = 1,ny
-    do xx=1,nx
+  do yy = 1,ny/flw_rsltn
+    do xx=1,nx/flw_rsltn
       if (matrix(yy,xx)%class ==p) then 
         if (Uo(xx,yy)==0 .and. Vo(xx,yy)==0) then
           cycle
         else 
           print *, time,'error in NS module check for flow in particles at x,y = ',xx,yy     &
-                  , 'uo,vo=', Uo(xx,yy),Vo(xx,yy), 'B2, Tp, Tp2 =',B2(xx,yy+1),Tp(xx,yy+1),Tp2(xx,yy+1)
+                  , 'uo,vo=', Uo(xx,yy),Vo(xx,yy)!, 'B2, Tp, Tp2 =',B2(xx,yy+1),Tp(xx,yy+1),Tp2(xx,yy+1)
           write(File_log, *) time,'error in NS module check for flow in particles at x,y = ',xx,yy     &
-                  , 'uo,vo=', Uo(xx,yy),Vo(xx,yy), 'B2, Tp, Tp2 =',B2(xx,yy+1),Tp(xx,yy+1),Tp2(xx,yy+1)
+                  , 'uo,vo=', Uo(xx,yy),Vo(xx,yy)!, 'B2, Tp, Tp2 =',B2(xx,yy+1),Tp(xx,yy+1),Tp2(xx,yy+1)
           flg_stop=.true.
           ! stop
        endif 
@@ -1254,7 +1315,8 @@ logical :: show_display = .false.
 
 write(numtemp,'(i10.1)') Time
 
-nx = n_col; ny = n_row  
+nx = n_col*flw_rsltn
+ny = n_row*flw_rsltn  
 
 if (.not.allocated(Pc)) allocate(Pc(nx,ny+2))
 if (.not.allocated(Uc)) allocate(Uc(nx,ny+2))

@@ -32,7 +32,8 @@
    integer(kind=4), Save :: TimeMin, TimeMax, TimeStep, RandSeed, DEPTHTOCONSTRAIN, MissingValue, WindowSize
    integer(kind=4), Save :: Time, Day, Year
    !  added 
-   integer(kind=4), Save :: Savetime ,y_int, Org_ID_ishape , PopTot, Time_addpop, Time_dif_st, Time_dif_rec       
+   integer(kind=4), Save :: Savetime ,y_int, Org_ID_ishape , PopTot, Time_addpop, Time_dif_st, Time_dif_rec   
+   integer(kind=4), save :: flw_rsltn   
 
    real(kind=8), Save    :: TimeScale, PixelSize, Porosity0, POROSITY_THRESHOLD, Porosity_DecayRate, Tolerance
    real(kind=8), Save    :: SedimentationRate, SedRate, DecayConstant, AspectRatio
