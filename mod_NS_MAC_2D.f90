@@ -38,9 +38,9 @@ logical :: flow_dir_x
 logical :: choice_done
 
 real(kind=8)  :: rdm(5)
-real(kind=8)  :: Ptop = 1d1  ! in g/cm/s/s (= 100 atm, with Pa = 10 g/cm/s/s and 1 atm = 1e5 Pa)
+real(kind=8)  :: Ptop = 1d1  ! in g/cm/s/s (*** note: Pa = 10 g/cm/s/s and 1 atm = 1e5 Pa, i.e., P = 1 (g/cm/s/s) corresponds 0.1 Pa and 1 uatm )
 real(kind=8)  :: Pbot = 1d2
-real(kind=8)  :: VelC          ! in cm/s (= 10 cm/day)
+real(kind=8)  :: VelC          ! in cm/s
 real(kind=8)  :: new = 0.015d0 ! viscosity in g/cm/s/s
 real(kind=8)  :: delh   ! cm/pixel 
 real(kind=8)  :: delt   ! s
@@ -1328,7 +1328,7 @@ if (.not.allocated(Dc)) allocate(Dc(nx,ny+2))
 if (.not.allocated(Qcx)) allocate(Qcx(nx,ny+2))
 if (.not.allocated(Qcy)) allocate(Qcy(nx,ny+2))
 
-delx = pixelsize
+delx = pixelsize/flw_rsltn
 dely = delx
 
 Um = Ug
