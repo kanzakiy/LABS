@@ -937,6 +937,7 @@
    Do i = 1, N_Ind
       Call Matrix_populate(i)
    End do
+   call chk_org('pplate') 
 
    flow_loc = coordinates(0,0)
    Vb = 0.0
@@ -3056,8 +3057,6 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
       print*,'error during population;','time,i, j, Org(i)%BodySize;',time,i, j, Org(i)%BodySize
       write(File_log,*)'error during population;','time,i, j, Org(i)%BodySize;',time,i, j, Org(i)%BodySize
    Endif
-
-   call chk_org('pplate') 
 
    Dir_rec(1:Org(i)%length - Org(i)%width,i) = Org(i)%Orientation
 
@@ -5851,7 +5850,7 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
       do j=1,Org(i)%BodySize
          xx= Org_loc(j,i)%X
          yy= Org_loc(j,i)%Y
-         ! print*,j,i,xx,yy,Org(i)%BodySize
+         ! print*,j,i,xx,yy,Org(i)%BodySize,chr
          if (.not.(matrix(yy,xx)%class==i .and. matrix(yy,xx)%value==j)) then 
             print*,'Error in organisms in '//chr//' ; time, i,j,xx,yy',time, i,j,xx,yy
             write(file_log,*)'Error in organisms in '//chr//' ; time, i,j,xx,yy',time, i,j,xx,yy
