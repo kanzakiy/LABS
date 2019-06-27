@@ -39,19 +39,20 @@
    write(WorkDir,*) 'C:/Users/YK/Desktop/biot-res/'
    call getarg(1,WorkName)
    ! write(WorkName,*) 'Egest_test1'
-   write(Today,*) trim(adjustl(WorkDir))//trim(adjustl(Workname))//'-'//trim(adjustl(dumchr(1)))
+   ! write(Today,*) trim(adjustl(WorkDir))//trim(adjustl(Workname))//'-'//trim(adjustl(dumchr(1)))
+   write(Today,*) trim(adjustl(Workname))//'/'
    
-   call system ('mkdir -p '//trim(adjustl(Today)))
+   ! call system ('mkdir -p '//trim(adjustl(Today)))
    call system ('mkdir -p '//trim(adjustl(Today))//'/geo')
    call system ('mkdir -p '//trim(adjustl(Today))//'/mix')
    call system ('mkdir -p '//trim(adjustl(Today))//'/o2')
    call system ('mkdir -p '//trim(adjustl(Today))//'/eco')
    
-   call system ('cp labs.exe '//trim(adjustl(Today)))
-   call system ('cp eParameters_IN.txt '//trim(adjustl(Today)))
-   call system ('cp Parameters_IN.txt '//trim(adjustl(Today)))
-   call system ('cp SedENV.IN '//trim(adjustl(Today)))
-   call system ('cp Organisms.IN '//trim(adjustl(Today)))
+   ! call system ('cp labs.exe '//trim(adjustl(Today)))
+   ! call system ('cp eParameters_IN.txt '//trim(adjustl(Today)))
+   ! call system ('cp Parameters_IN.txt '//trim(adjustl(Today)))
+   ! call system ('cp SedENV.IN '//trim(adjustl(Today)))
+   ! call system ('cp Organisms.IN '//trim(adjustl(Today)))
 
    OPEN(unit = File_Profile,  file = trim(adjustl(Today))//'/mix'// &
       '/DepthProfiles.OUT', status = 'unknown')
@@ -552,7 +553,7 @@
    character*32 :: IDdum
    
    ! input user defined variables ..
-   OPEN(unit = File_Parameters, file = 'Parameters_IN.txt', status = 'old')
+   OPEN(unit = File_Parameters, file = trim(adjustl(Today))//'Parameters_IN.txt', status = 'old')
    READ(File_Parameters,*) Movies_on          ! OUTPUT IS (0) a movie or (1) user defined in the main program
    READ(File_Parameters,*) DepthAvoidance_on  ! Turn on/off DEPTH AVOIDANCE FUNCTION?
    READ(File_Parameters,*) Lability_ON        ! Turn on/off lability searching, selection, degradation functions
@@ -578,7 +579,7 @@
    CLOSE(File_Parameters)
    
    ! input user defined variables .. eLABS
-   OPEN(unit = File_Parameters, file = 'eParameters_IN.txt', status = 'old')
+   OPEN(unit = File_Parameters, file = trim(adjustl(Today))//'eParameters_IN.txt', status = 'old')
    READ(File_Parameters,*) oxygen_ON          ! if true, oxygen is simulated 
    READ(File_Parameters,*) oxFB_ON            ! oxygen feedback
    READ(File_Parameters,*) Resp_ON            ! respiration
@@ -598,7 +599,7 @@
    CLOSE(File_Parameters)
        
    ! input user defined variables .. some constants in eLABS 
-   OPEN(unit = File_Parameters, file = 'SedENV.IN', status = 'old')
+   OPEN(unit = File_Parameters, file = trim(adjustl(Today))//'SedENV.IN', status = 'old')
    READ(File_Parameters,*) pal                ! fraction of o2 (0 to 1) 
    READ(File_Parameters,*) iox                ! reference oxygen conc.
    READ(File_Parameters,*) OM_uni             ! mol/L/wt%: conversion of wt% OM to mol/L OM
@@ -625,7 +626,7 @@
    POROSITY_THRESHOLD = 0.9  ! THE CUTOFF AT WHICH ORGANISMS WILL TURN AWAY FROM THE WATER COLUMN
    WindowSize = 2            ! the number of pixels used for calculation of local porosity (function Porosity_local)
 
-   OPEN(unit = File_Organisms, file = 'Organisms.IN', status = 'old')
+   OPEN(unit = File_Organisms, file = trim(adjustl(Today))//'Organisms.IN', status = 'old')
    DO n = 1, N_Ind
       READ(File_Organisms,*) i
       Read(File_Organisms,*) r_Width
@@ -796,7 +797,7 @@
    PopTot = 0
 
    ! Read in again organism info and rescale organism traits to simulation time/space units
-   OPEN(unit = File_Organisms, file = 'Organisms.IN', status = 'old')
+   OPEN(unit = File_Organisms, file = trim(adjustl(Today))//'Organisms.IN', status = 'old')
    DO n = 1, N_Ind
 
       READ(File_Organisms,*) i
@@ -1081,7 +1082,7 @@
    PopLogID(1:N_ind-1)=ID_dum
 
    ! Read in again organism info and rescale organism traits to simulation time/space units
-   OPEN(unit = File_Organisms, file = 'Organisms.IN', status = 'old')
+   OPEN(unit = File_Organisms, file = trim(adjustl(Today))//'Organisms.IN', status = 'old')
 
    READ(File_Organisms,*) i
    Read(File_Organisms,*) r_Width
@@ -5746,14 +5747,14 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
       if (matrixCheck) then
 
-         open (unit=100, file="C:/Users/YK/Desktop/biot-res/check.txt",status = 'unknown')
+         open (unit=100, file=trim(adjustl(Today))//"check.txt",status = 'unknown')
          do y = yint, yfin
             row = y - yint + 1
          write(100,*) (amx(row, j), j = 1, cnt2)
          end do 
          close(100)
 
-         open (unit=200, file="C:/Users/YK/Desktop/biot-res/check2.txt",status = 'unknown')
+         open (unit=200, file=trim(adjustl(Today))//"check2.txt",status = 'unknown')
          do y = yint, yfin
             row = y - yint + 1
          write(200,*) ymx(row)
