@@ -10,14 +10,13 @@ BLAS & UMFPACK libraries are required.
 To make a simulation, following steps need be followed. 
 
 (1) Specify parameters in eParameters_IN.txt, SedENV.IN and Parameters_IN.txt.
-    (a) Specify directory where output is stored in line 40 of LABS.f90. 
+    (a) Specify directory where output is stored in line 2 of runelabs.sh. 
     (b) Turn switches on/off depending on simulations in eParameters_IN.txt.
-    (c) Change reaction rate, shear velocity and oxygen concentration (if you want) in SedENV.IN.  
-    (d) Change sedimentation rate, porosity and simulation duration (if you want) in Parameters_IN.txt. 
-(2) Compile codes by typing 'make'. If successful, labs.exe is created. Whenever you changed FORTRAN90 code, you need compile. 
-    If you previously created labs.exe, type 'make clean' before compiling again. 
-(3) Simulate an experiment by typing './labs your_experiment_name'.
-(4) Analyze results in a directory of your_experiment_name in the directory you specified in LABS.f90.
+    (c) Change reaction rate, shear velocity and oxygen concentration in SedENV.IN.  
+    (d) Change sedimentation rate, porosity and simulation duration in Parameters_IN.txt. 
+(2) Compile codes and run a simulation by typing './runelabs.sh'. You will be asked to type a simulation name.  
+    If you have changed source codes, type 'make clean' before compiling again. 
+(3) Analyze results in a directory of your_experiment_name in the directory you specified in runelabs.sh.
     (a) Flux can be immediately plotted (with/without experiments finished) by double clicking biot-flx2.plt in 'o2' directory (you need gnuplot for this). 
     (b) Oxygen profile is stored in 'o2' directory in the your_experiment_name directory as O2data-xxxxx.txt files where xxxx records time steps in the experiments.
         To visualize oxygen profile, use any software that reads text image, e.g., ImageJ.
