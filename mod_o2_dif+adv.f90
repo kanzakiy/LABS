@@ -1151,9 +1151,7 @@ call umf4fnum ( numeric )
 !  Print the solution.
 !
 
-write ( *, * ) ''
-write ( *, * ) '  Computed solution:', TIme
-write ( *, * ) ''
+print '(A22,I0)','O2 time-step: ',Time
 
 call O2pre_setup()
 
@@ -1635,8 +1633,11 @@ do2dt = do2dt*iox*1e-3*width_3d*(pixelSize)*(PixelSize)
 totAbio = totOrgDecay - Totresp 
 reso2 = do2dt - toto2dif + toto2adv + totorgdecay 
 
-write(File_flux2,*) Time*Timescale, TotO2dif,TotO2Adv, TotAbio, TotResp, TotOrgDecay, do2dt, reso2
-write(*,*) "FLUXES_v2 --- :", TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt, reso2     
+write(File_flux,*) Time*Timescale, TotO2dif,TotO2Adv, TotAbio, TotResp, TotOrgDecay, do2dt, reso2
+print '(A19,7A11)','','DIFFUSION','ADVECTION','DECAY','RESP','ORGTOT','dO2/dT','RESIDUAL'
+print '(A19,7E11.3)', 'O2 fluxes: ', TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt, reso2     
+print '(A23)','[mol cm-2 yr-1]'
+print *
 
 end subroutine oxygen_profile
 

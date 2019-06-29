@@ -687,8 +687,8 @@ Rc = 0.0d0
 ! start calculation 
 step = 0
 do while (step < nstep)
-	if (show_display) print *,'T',step
-	! calculate u,v from previous iteration
+	if (show_display) print '(A,I3,A)','        Flow time-step: ',step,' ---------------------------'
+	! calculate u,v from previous iteration  
 	do xx = 1, nx
 		do yy = 1, ny + 2
 			xp = xx + 1
@@ -1193,12 +1193,12 @@ do while (step < nstep)
 	step = step + 1
 	! show results on display
 	if (show_display) then 
-        print '(4A11)', '','max','min','sum'
-		print '(A11,2E11.3)', 'U[cm/s]:',maxval(Um(:,2:ny+1)),minval(Um(:,2:ny+1))
-		print '(A11,2E11.3)', 'V[cm/s]:',maxval(Vm(:,2:ny+1)),minval(Vm(:,2:ny+1))
-		print '(A11,2E11.3)', 'P[x0.1Pa]:',maxval(Pc(:,2:ny+1)),minval(Pc(:,2:ny+1))
-		print '(A11,3E11.3)', 'D[/s]:',maxval(Dc(:,2:ny+1)),minval(Dc(:,2:ny+1)),sum(Dc(:,2:ny+1))
-		print *,'==========================================================='
+        print '(5A11)', '','U[cm/s]','V[cm/s]','P[x0.1Pa]','D[/s]'
+		print '(A11,4E11.3)', 'MAX',maxval(Um(:,2:ny+1)),maxval(Vm(:,2:ny+1)),maxval(Pc(:,2:ny+1)),maxval(Dc(:,2:ny+1))
+		print '(A11,4E11.3)', 'MIN',minval(Um(:,2:ny+1)),minval(Vm(:,2:ny+1)),minval(Pc(:,2:ny+1)),minval(Dc(:,2:ny+1))
+		print '(4A11,E11.3)', 'SUM','-','-','-',sum(Dc(:,2:ny+1))
+		print '(A)','        -----------------------------------------------'
+        print *
 	end if 
 end do
 Ug = Um

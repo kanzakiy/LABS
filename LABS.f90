@@ -75,8 +75,6 @@
       '/flux.OUT', status = 'unknown')
    OPEN(unit = File_Log, file = trim(adjustl(Today))//  &
       '/log.OUT', status = 'replace')
-   OPEN(unit = File_flux2, file = trim(adjustl(Today))//'/o2'// &
-      '/flux2.OUT', status = 'unknown')
    OPEN(unit = File_Core, file = trim(adjustl(Today))//'/geo'//   &
       '/Core.OUT', status = 'unknown')
    OPEN(unit = File_Core_M, file = trim(adjustl(Today))//'/geo'// &
@@ -105,7 +103,6 @@
    Call Output_txtImg()
     
    call gnuplot_flux(' ')
-   call gnuplot_flux('2')
    
    Savetime = 1 
    
@@ -119,7 +116,12 @@
       Pr_Activity_day = 0.5 * (1. + cos(pi + 2.*pi*(Real(Time)/Real(Day)) ) )
       CurrentTime = CurrentTimeString()
 
-      print*,trim(adjustl(workname)),': ', currenttime
+      print *
+      print *
+      print '(3A)', '>>>>>>> ','MODEL TIME    = ',  currenttime
+      print '(3A)', '        ','FILE LOCATION = ', trim(adjustl(workname))
+      print *
+      print *
 
       call chk_org('tmtble')
 
@@ -336,7 +338,7 @@
          ! Call Output_O2txtImg()  !  output every time step
          ! Call Output_txtImg()   !  output every time step
          
-         call fluxes()
+         ! call fluxes()
          
          If (Any(Time .eq. Time_Output)) then
             continue
@@ -363,7 +365,7 @@
       If (.not. oxygen_ON) then
          o2(:,:)%oxygen =1.0
          call OrgDecay()
-         call fluxes()
+         ! call fluxes()
          O2%oxygen_use = 0.0
       Endif
          
@@ -517,7 +519,6 @@
    Close(Poly_fit)
    Close(File_flux)
    Close(File_log)
-   Close(File_flux2)
    Close(File_Core)
    Close(File_Core_M)
    Close(File_Core_L)

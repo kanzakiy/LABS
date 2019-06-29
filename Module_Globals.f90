@@ -162,7 +162,7 @@
    integer(kind=4), Parameter :: File_Parameters = 1, File_Organisms = 2, File_ASCII = 3, File_txtImg = 4, File_txtImg_2 = 5
    
    integer(kind=4), Parameter :: File_Profile2 = 50, File_Profile3 = 60, File_Displace2=70, File_oneD=80,  File_Profile_Re = 90
-   integer(kind=4), parameter :: File_temp = 950, File_flux = 230, File_Log = 340, file_flux2 = 220
+   integer(kind=4), parameter :: File_temp = 950, File_flux = 230, File_Log = 340
    
    integer(kind=4), Parameter :: poly_fit = 100
    
