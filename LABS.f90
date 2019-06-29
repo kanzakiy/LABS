@@ -17,7 +17,6 @@
 
    Use GlobalVariables
    use O2_diffusion
-   use ieee_arithmetic
    use NS_MAC_2D
 
    implicit none
@@ -277,11 +276,11 @@
 			   ! call output_flow()
          end if 
 			 
-         if (any(ieee_is_nan(Vo))) then
+         if (any(isnan(Vo))) then
             print *, 'NAN in Vo'
 			   stop 1
          end if 
-         if (any(ieee_is_nan(Uo))) then 
+         if (any(isnan(Uo))) then 
 			   print *, "NAN in Uo"
 			   stop 1
          end if	
@@ -312,11 +311,11 @@
          
          call OrgDecay()
          
-         if (any(ieee_is_nan(O2%oxygen_use))) then
+         if (any(isnan(O2%oxygen_use))) then
             print *, "NAN in oxygen_use"
             do yy = 1, n_row
                do xx = 1, n_col
-                  if (ieee_is_nan(O2(yy,xx)%oxygen_use)) then
+                  if (isnan(O2(yy,xx)%oxygen_use)) then
                      print *, yy, xx
                      if (matrix(yy,xx)%class == p) then 
                         O2(yy,xx)%oxygen_use = 0.0
@@ -346,7 +345,7 @@
          end if
          
          
-         if (any(ieee_is_nan(O2%oxygen))) print *, "NAN in oxygen"
+         if (any(isnan(O2%oxygen))) print *, "NAN in oxygen"
          
          do yy = 1, n_row
             do xx = 1, n_col
@@ -2165,7 +2164,6 @@
      ! move the organism i by translation in the direction that it is oriented
 
    Use GlobalVariables
-   use ieee_arithmetic
    implicit none
    integer(kind=4) ::  i, j, dX, dY
    Type(Coordinates) :: Image(Org(i)%BodySize)
@@ -2366,7 +2364,6 @@
      ! move the organism backwards
 
    Use GlobalVariables
-   use ieee_arithmetic
    Implicit None
    Logical :: InMatrix                               
    integer(kind=4) :: j, neck, dx, dy, Reversedirection
@@ -2659,7 +2656,6 @@
      ! low level routine that translates the organism i when they are wrapping around
 
    Use GlobalVariables
-   use ieee_arithmetic
    Implicit None
    integer(kind=4) :: j, k, dx, dy, X_new
    integer(kind=4), Intent(IN) :: i
@@ -2766,7 +2762,6 @@
      ! fill the matrix with particles
 
    Use GlobalVariables
-   use ieee_arithmetic
    Implicit None
    integer(kind=4) ::  X, Y, k, Particle_ID, Lability
    real(kind=8) :: Porosity, DEpth, URand
@@ -3078,7 +3073,6 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
      ! add a particle at the co-ordinates (Point%Y, Point%X)
 
    Use GlobalVariables
-   use ieee_arithmetic
    Implicit None
    integer(kind=4) :: Particle_ID, Lability
    Type(Coordinates) :: Point
@@ -3133,7 +3127,6 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
      ! remove the particle at the co-ordinates (Point%Y, Point%X)
 
    Use GlobalVariables
-   use ieee_arithmetic
    Implicit None
    integer(kind=4) :: Particle_ID
    Type(Coordinates),intent(IN) :: Point
@@ -3225,7 +3218,6 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
      ! low level routine - move particle downwards/diagonally until the local density is stable
 
    Use GlobalVariables
-   use ieee_arithmetic
    Implicit None
    Logical :: InMAtrix, IsWater
    integer(kind=4) ::  TestWindow
@@ -3366,7 +3358,6 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
      ! constrain the total number of particles in the simulation to be ~constant within a given tolerance
 
    Use GlobalVariables
-   use ieee_arithmetic
    Implicit none
    Logical :: IsOrganism, IsParticle
    integer(kind=4) :: Y_new, Y, X, DummyVariable, PArticle_ID
@@ -3460,7 +3451,6 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
      ! push particles away in the block defined by the coordinates (Point) and Orientation
 
    Use GlobalVariables
-   use ieee_arithmetic
    Implicit None
    Logical :: Finished, DoIt, LoopIt, Stuck
    integer(kind=4),intent(IN) :: i, Orientation
@@ -3709,21 +3699,21 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
                         Matrix(ToMove_loc%Y, ToMove_loc%X) = CellContent(w,w)
                         if (oxygen_ON) then 
                            O2(Y, X_buff) = O2(Y, X)
-                           if (ieee_is_nan(O2(Y, X2_start)%oxygen)) then
+                           if (isnan(O2(Y, X2_start)%oxygen)) then
                               print *,"NAN in oxygen",Y, X2_start
                               write(File_log, *) Time, "NAN in oxygen",Y, X2_start
                            endif 
-                           if (ieee_is_nan(O2(Y, X2_start)%oxygen_use)) then
+                           if (isnan(O2(Y, X2_start)%oxygen_use)) then
                               print *,"NAN in oxygen_use",Y, X2_start
                               write(File_log, *) Time, "NAN in oxygen",Y, X2_start
                            end if 
 
                            O2(Y, X) = O2_buff
-                           if (ieee_is_nan(O2(Y, X)%oxygen)) then 
+                           if (isnan(O2(Y, X)%oxygen)) then 
                               print *,"NAN in oxygen",Y, X
                               write(File_log, *) Time, "NAN in oxygen",Y, X
                            end if 
-                              if (ieee_is_nan(O2(Y, X)%oxygen_use)) then
+                              if (isnan(O2(Y, X)%oxygen_use)) then
                               print *,"NAN in oxygen_use",Y, X
                               write(File_log, *) Time, "NAN in oxygen",Y, X
                            end if 
@@ -3845,7 +3835,6 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
      ! low level routine to swap particles used by the pushing routine
 
    Use GlobalVariables
-   use ieee_arithmetic
    Implicit None
    Logical, Intent(Out) :: Finished
    integer(kind=4), Intent(in) :: X, Y
@@ -3882,7 +3871,6 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
      ! organism (i) ingests particles for the block defined by co-ordinates (Point%Y, Point%X) and the orientation input
 
    Use GlobalVariables
-   use ieee_arithmetic
    Implicit None
    Logical :: EAt
    integer(kind=4) :: i, k, m, n, o, Orientation
@@ -3986,7 +3974,6 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
      ! organism i egests particles
 
    Use GlobalVariables
-   use ieee_arithmetic
    Implicit None
    Logical  :: IsWater, inmatrix
    integer(kind=4) :: i, j, k, loc, centre
@@ -5314,7 +5301,6 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    Subroutine Output_stats()
 
    Use GlobalVariables
-   use ieee_arithmetic
    use mod_pfit
 
    Implicit None
@@ -5638,7 +5624,7 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
    m = N_Row
    cnt = 0
    do j = 1, N_Row
-      if (.not.ieee_is_nan(Db_list(j)) .and.(Db_list(j) > 0.)) cnt = cnt +1
+      if (.not.isnan(Db_list(j)) .and.(Db_list(j) > 0.)) cnt = cnt +1
    End do
    m = cnt
 
@@ -5650,7 +5636,7 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
       cnt = 1
       do j = 1, N_row
          if (cnt.eq. m) exit
-         if (.not.ieee_is_nan(Db_list(j)) .and.(Db_list(j) > 0.)) then
+         if (.not.isnan(Db_list(j)) .and.(Db_list(j) > 0.)) then
 
             xsel(cnt) = depth_vector(j)
             ysel(cnt) = log10(Db_list(j))
@@ -5683,7 +5669,7 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
       if (y .ge. yfin) then 
          cnt2 = 0
          j = y
-         do while (((.not.ieee_is_nan(Db_list(j))).and. (j .le. n_row).and.(Db_list(j).ne.0))) 
+         do while (((.not.isnan(Db_list(j))).and. (j .le. n_row).and.(Db_list(j).ne.0))) 
             if (cnt2 .eq. 0) then 
                yint = j
             end if
@@ -5722,17 +5708,17 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
       amx = 0.0
       ymx = 0.0
       ipiv = 0
-      if (.not.ieee_is_nan(sum(Db_list2))) Db_list = Db_list2
+      if (.not.isnan(sum(Db_list2))) Db_list = Db_list2
       do y = yint , yfin 
          row = y -  yint + 1
          if (y ==   yint ) then
             amx(row,row) = (Db_list(y) - Db_list(y))/pixelSize/pixelSize + Db_list(y)*(-2.0)/pixelSize/pixelSize - decayconstant
             amx(row,row + 1) =  Db_list(y)*(1.0)/pixelSize/pixelSize 
             ymx(row) = (Db_list(y) - Db_list(y))/pixelSize/pixelSize* merge(Activity_vector2(y),1.d0      &
-            , (Activity_vector2(y).ne.0.0).and.(.not.ieee_is_nan(Activity_vector2(y)))     &
+            , (Activity_vector2(y).ne.0.0).and.(.not.isnan(Activity_vector2(y)))     &
             .and.(yint.ne.1).and.(.not.int_activity_1)) &
             +  Db_list(y)*(-1.0)/pixelSize/pixelSize * merge(Activity_vector2(y),1.d0   &
-            ,  (Activity_vector2(y).ne.0.0).and.(.not.ieee_is_nan(Activity_vector2(y)))       &
+            ,  (Activity_vector2(y).ne.0.0).and.(.not.isnan(Activity_vector2(y)))       &
             .and.(yint.ne.1).and.(.not.int_activity_1))
             else if (y == yfin) then 
             amx(row,row) = (Db_list(y) - Db_list(y-1))/pixelSize/pixelSize + Db_list(y)*(-1.0)/pixelSize/pixelSize - decayconstant

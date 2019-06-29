@@ -194,7 +194,6 @@ subroutine oxygen_profile()
 !!  (using 1st order upwind scheme for advection, 2nd order central differenciation for diffusion term. Time is explicit, 1st order)
 
 use GlobalVariables
-use ieee_arithmetic
 implicit none
 
 integer(kind=4) :: n, nnz
@@ -1183,7 +1182,7 @@ do yy = y_int  + 1, y_fin
             print *, "%%%%%%%%%%%%%%%%%%%%"
         end if 
 
-        if (ieee_is_nan(O2(yy,xx)%oxygen)) then
+        if (isnan(O2(yy,xx)%oxygen)) then
             print *,"//////////////////"
             print *,"//  NAN at",yy,xx,"///"
             print *,"//////////////////"

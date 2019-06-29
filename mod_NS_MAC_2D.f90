@@ -41,7 +41,7 @@ real(kind=8)  :: rdm(5)
 real(kind=8)  :: Ptop = 1d1  ! in g/cm/s/s (*** note: Pa = 10 g/cm/s/s and 1 atm = 1e5 Pa, i.e., P = 1 (g/cm/s/s) corresponds 0.1 Pa and 1 uatm )
 real(kind=8)  :: Pbot = 1d2
 real(kind=8)  :: VelC          ! in cm/s
-real(kind=8)  :: new = 0.015d0 ! viscosity in g/cm/s/s
+real(kind=8)  :: new = 0.015d0 ! viscosity in g/cm/s
 real(kind=8)  :: delh   ! cm/pixel 
 real(kind=8)  :: delt   ! s
 real(kind=8)  :: delx   ! cm/pixel 
@@ -1105,12 +1105,6 @@ do while (step < nstep)
 	end if
 	! Free the memory associated with the numeric factorization.
 	call umf4fnum ( numeric )
-	!  Print the solution.
-	if (show_display) then 
-	write ( *, * ) ''
-	write ( *, * ) '  Computed solution'
-	write ( *, * ) ''
-	end if 
 	! chk the solution 
 	if (chk_matrix) then 
 		open(500, file="chck_kai.txt", status = 'replace')
@@ -1199,17 +1193,11 @@ do while (step < nstep)
 	step = step + 1
 	! show results on display
 	if (show_display) then 
-		print *, 'U:',maxval(Um),'/',minval(Um),'/'
-		print *, 'V:',maxval(Vm),'/',minval(Vm),'/'
-		print *, 'P:',maxval(Pc),'/',minval(Pc),'/'
-		print *, 'D:',maxval(Dc),'/',minval(Dc),'/'
-		print *,'- - - - - - - - - - - - - - - - - -'
-		print *,'| excluding top and bottom layers |'
-		print *,'- - - - - - - - - - - - - - - - - -'
-		print *, 'U:',maxval(Um(:,2:ny+1)),'/',minval(Um(:,2:ny+1)),'/'
-		print *, 'V:',maxval(Vm(:,2:ny+1)),'/',minval(Vm(:,2:ny+1)),'/'
-		print *, 'P:',maxval(Pc(:,2:ny+1)),'/',minval(Pc(:,2:ny+1)),'/'
-		print *, 'D:',maxval(Dc(:,2:ny+1)),'/',minval(Dc(:,2:ny+1)),'/',sum(Dc(:,2:ny+1)),'/'
+        print '(4A11)', '','max','min','sum'
+		print '(A11,2E11.3)', 'U[cm/s]:',maxval(Um(:,2:ny+1)),minval(Um(:,2:ny+1))
+		print '(A11,2E11.3)', 'V[cm/s]:',maxval(Vm(:,2:ny+1)),minval(Vm(:,2:ny+1))
+		print '(A11,2E11.3)', 'P[x0.1Pa]:',maxval(Pc(:,2:ny+1)),minval(Pc(:,2:ny+1))
+		print '(A11,3E11.3)', 'D[/s]:',maxval(Dc(:,2:ny+1)),minval(Dc(:,2:ny+1)),sum(Dc(:,2:ny+1))
 		print *,'==========================================================='
 	end if 
 end do
