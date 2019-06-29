@@ -23,7 +23,7 @@
    !  added parameters to eLABS
    logical, save :: oxygen_ON, oxFB_ON, Resp_ON , only_sed ,errDetect ,errChk , I_shape 
    logical, save :: flow_ON, Detail_Log ,Ash_ON  ,Incl_ASH, Mod_Pop,non_Pop,trans_making 
-   logical, save :: Long_run,  O2lim_on 
+   logical, save :: Long_run,  O2lim_on, calc_perm, Perm_Rec 
 
    integer(kind=4), Save :: N_Ind, N_Row, N_Col, N_Cell, Buffer_Zone, N_RowWater, N_RowSed, N_LabilityClasses
    integer(kind=4), Save :: Total_N_Particles, Total_N_Particles0, ParticleTolerance
@@ -162,12 +162,12 @@
    integer(kind=4), Parameter :: File_Parameters = 1, File_Organisms = 2, File_ASCII = 3, File_txtImg = 4, File_txtImg_2 = 5
    
    integer(kind=4), Parameter :: File_Profile2 = 50, File_Profile3 = 60, File_Displace2=70, File_oneD=80,  File_Profile_Re = 90
-   integer(kind=4), parameter :: File_temp = 950, File_flux = 230, File_Log = 340
+   integer(kind=4), parameter :: File_temp = 950, File_flux = 230, File_Log = 340, File_Perm = 220
    
    integer(kind=4), Parameter :: poly_fit = 100
    
    integer(kind=4), Parameter :: File_Diet = 19, File_Core = 29, File_Core_M = 39, File_Core_L = 49, File_Core_A = 59, File_pop = 55
-   integer(kind=4),parameter  :: File_sedrate = 18, File_profile_st = 88, File_dbio_st = 77
+   integer(kind=4), parameter :: File_sedrate = 18, File_profile_st = 88, File_dbio_st = 77
    
    
    !  Summary of the structure of the User defined types

@@ -93,8 +93,9 @@ logical :: rec_binary = .false.
 logical :: chk_particles = .true.
 logical :: flg_stop = .false.
 
-character*21 numtemp
+character*21 numtemp, cat_tmp
 integer(kind=4) xxx,yyy, x_tmp, y_tmp
+real(kind=8) :: perm_u, perm_d
 !---------------------------
 write(numtemp,'(i10.1)') Time
 !  allocate 
@@ -131,6 +132,20 @@ delt = delh/2.0d0
 
 VelC = pixelsize/timescale/24.0d0/60.0d0/60.0d0  ! cm/s 
 
+if (calc_perm) then 
+    const_bot = .true.
+    const_top = .true.
+    nstep = 100
+    Pbot = 0d0
+    cat_tmp = 'geo'
+else 
+    const_bot = .false.
+    const_top = .false.
+    nstep = 10
+    Pbot = 1d2
+    cat_tmp = 'o2'
+endif
+
 ! reading file
 if (.not.simple_test) then
 	B = 0
@@ -162,10 +177,17 @@ end if
 
 ! x100 bindary file (unnecessary?); now, 100 = obstacle, 0 = water
 B = 100*B
+if (calc_perm) then ! ignoring organisms
+	where (B == 200)
+		B = 0
+	else where (B == 300)
+		B = 0
+	end where
+end if 
 
 !!!! check the read file
 if ((rec_binary).and.(time>18700)) then 
-	open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-BI-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-BI-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (B(xx,yy), xx = 1,nx)
@@ -438,21 +460,21 @@ end where
 
 !!!! check the connected bindaries
 if ((rec_binary)) then 
-	open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-UP-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-UP-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (UP(xx,yy), xx = 1,nx)
 	end do 
 	close(100)
 
-	open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-DOWN-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-DOWN-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (DOWN(xx,yy), xx = 1,nx)
 	end do 
 	close(100)
 
-	open(unit = 100, file = trim(adjustl(today))//'o2/test2d(F)-CONN-'  & 
+	open(unit = 100, file = trim(adjustl(today))//''//trim(adjustl(cat_tmp))//'/test2d(F)-CONN-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (CONN(xx,yy), xx = 1,nx)
@@ -527,69 +549,71 @@ do xx = 1, nx
 end do 
 
 ! choose randomly a location for constant flow boundary 
-if (random_choice) then 
-	choice_done = .false.
-	call random_seed
-	do while (.not.choice_done)
-		call random_number(rdm)
-		xx = 3 + int(rdm(1)*(nx-3))
-		yy = 3 + int(rdm(2)*(ny-3))
-		xp = xx + 1
-		xg = xx - 1
-		yp = yy + 1
-		yg = yy - 1
-		if (.not. simple_test) then 
-			if ((B2(xx,yy) == 0).and.(yy > int(3*ny/10))) then 
-				dirc = 1 + int(rdm(3)*4)
-				if ((dirc == 1).and.(B2(xp,yy) == 0)) Tp(xx,yy) = 500; choice_done = .true.  ! rightward flow
-				if ((dirc == 2).and.(B2(xg,yy) == 0)) Tp(xx,yy) = 600; choice_done = .true.  ! leftward flow
-				if ((dirc == 3).and.(B2(xx,yp) == 0)) Tp(xx,yy) = 700; choice_done = .true.  ! downward flow
-				if ((dirc == 4).and.(B2(xx,yg) == 0)) Tp(xx,yy) = 800; choice_done = .true.  ! upward flow
-			end if 
-		else if (simple_test) then 
-			if ((B2(xx,yy) == 0)) then 
-				dirc = 1 + int(rdm(4)*4)
-				if ((dirc == 1).and.(B2(xp,yy) == 0)) Tp(xx,yy) = 500; choice_done = .true.  ! rightward flow
-				if ((dirc == 2).and.(B2(xg,yy) == 0)) Tp(xx,yy) = 600; choice_done = .true.  ! leftward flow
-				if ((dirc == 3).and.(B2(xx,yp) == 0)) Tp(xx,yy) = 700; choice_done = .true.  ! downward flow
-				if ((dirc == 4).and.(B2(xx,yg) == 0)) Tp(xx,yy) = 800; choice_done = .true.  ! upward flow
-			end if 
-		end if 
-	end do 
-end if 
-if (.not. random_choice) then 
-	do i = 1, n_ind
-		do pp = 1,2
-			if ((Vb(pp,i) /= 0).or.(Ub(pp,i) /= 0)) then 
-				xx = flow_loc(pp,i)%X
-				yy = flow_loc(pp,i)%Y
-                if (flw_rsltn == 1) then 
-                    Tp(xx,yy+1) = 900
-                elseif (flw_rsltn/=1) then 
-                    Tp((xx-1)*flw_rsltn+1,(yy-1)*flw_rsltn+1+1) = 900
-                endif 
-                ! print*, xx,yy,matrix(yy,xx)%class
-                if (matrix(yy,xx)%class /= i) then 
-                  print *, '+++ error in flow boundary +++'
-                  write(File_log,*) '+++ error in flow boundary +++ (x,y)=',xx,yy,'class = ',matrix(yy,xx)%class 
-                  flg_stop=.true.
-                  ! stop
-                endif
-			end if 
-		end do
-	end do
-end if 
+if (.not.calc_perm) then 
+    if (random_choice) then 
+        choice_done = .false.
+        call random_seed
+        do while (.not.choice_done)
+            call random_number(rdm)
+            xx = 3 + int(rdm(1)*(nx-3))
+            yy = 3 + int(rdm(2)*(ny-3))
+            xp = xx + 1
+            xg = xx - 1
+            yp = yy + 1
+            yg = yy - 1
+            if (.not. simple_test) then 
+                if ((B2(xx,yy) == 0).and.(yy > int(3*ny/10))) then 
+                    dirc = 1 + int(rdm(3)*4)
+                    if ((dirc == 1).and.(B2(xp,yy) == 0)) Tp(xx,yy) = 500; choice_done = .true.  ! rightward flow
+                    if ((dirc == 2).and.(B2(xg,yy) == 0)) Tp(xx,yy) = 600; choice_done = .true.  ! leftward flow
+                    if ((dirc == 3).and.(B2(xx,yp) == 0)) Tp(xx,yy) = 700; choice_done = .true.  ! downward flow
+                    if ((dirc == 4).and.(B2(xx,yg) == 0)) Tp(xx,yy) = 800; choice_done = .true.  ! upward flow
+                end if 
+            else if (simple_test) then 
+                if ((B2(xx,yy) == 0)) then 
+                    dirc = 1 + int(rdm(4)*4)
+                    if ((dirc == 1).and.(B2(xp,yy) == 0)) Tp(xx,yy) = 500; choice_done = .true.  ! rightward flow
+                    if ((dirc == 2).and.(B2(xg,yy) == 0)) Tp(xx,yy) = 600; choice_done = .true.  ! leftward flow
+                    if ((dirc == 3).and.(B2(xx,yp) == 0)) Tp(xx,yy) = 700; choice_done = .true.  ! downward flow
+                    if ((dirc == 4).and.(B2(xx,yg) == 0)) Tp(xx,yy) = 800; choice_done = .true.  ! upward flow
+                end if 
+            end if 
+        end do 
+    end if 
+    if (.not. random_choice) then 
+        do i = 1, n_ind
+            do pp = 1,2
+                if ((Vb(pp,i) /= 0).or.(Ub(pp,i) /= 0)) then 
+                    xx = flow_loc(pp,i)%X
+                    yy = flow_loc(pp,i)%Y
+                    if (flw_rsltn == 1) then 
+                        Tp(xx,yy+1) = 900
+                    elseif (flw_rsltn/=1) then 
+                        Tp((xx-1)*flw_rsltn+1,(yy-1)*flw_rsltn+1+1) = 900
+                    endif 
+                    ! print*, xx,yy,matrix(yy,xx)%class
+                    if (matrix(yy,xx)%class /= i) then 
+                      print *, '+++ error in flow boundary +++'
+                      write(File_log,*) '+++ error in flow boundary +++ (x,y)=',xx,yy,'class = ',matrix(yy,xx)%class 
+                      flg_stop=.true.
+                      ! stop
+                    endif
+                end if 
+            end do
+        end do
+    end if 
+endif 
 				
 ! check the type-classified map
 if (rec_binary) then 
-	open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-Tp-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-Tp-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny+2
 		write(100,*) (Tp(xx,yy), xx = 1,nx)
 	end do 
 	close(100)
 
-	open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-Tp2-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-Tp2-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny+2
 		write(100,*) (Tp2(xx,yy), xx = 1,nx)
@@ -1200,6 +1224,19 @@ do while (step < nstep)
 		print '(A)','        -----------------------------------------------'
         print *
 	end if 
+    if (calc_perm) then 
+		Vt_t = sum((Vm(:,2) + Vm(:,3))/2.0d0)
+		Vt_b = sum((Vm(:,ny+1) + Vm(:,ny+2))/2.0d0 )
+		perm_u = (Vt_t)/nx*new*ny*delh/(Ptop-Pbot)*1e-4   
+		perm_d = (Vt_b)/nx*new*ny*delh/(Ptop-Pbot)*1e-4  
+        if (show_display) then 
+            print '(A)','        *****************************'
+            print '(A15,2A11)','','UP','DOWN'
+            print '(A8,A7,2E11.3)', '','K[m2]: ',perm_u,perm_d
+            print '(A)','        *****************************'
+            print *
+        endif 
+    endif 
 end do
 Ug = Um
 Vg = Vm 
@@ -1247,28 +1284,28 @@ endif
 
 ! check matrix file vs type/binary files
 if (chk_particles .and. flg_stop) then 
-	open(unit = 100, file = trim(adjustl(today))//'/o2/matrix-class-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/matrix-class-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 1,ny
 		write(100,*) (matrix(yy,xx)%class, xx = 1,nx)
 	end do 
 	close(100)
     
-	open(unit = 100, file = trim(adjustl(today))//'/o2/Tp(nxxny)-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/Tp(nxxny)-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 2,ny+1
 		write(100,*) (Tp(xx,yy), xx = 1,nx)
 	end do 
 	close(100)
 
-	open(unit = 100, file = trim(adjustl(today))//'/o2/Tp2(nxxny)-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/Tp2(nxxny)-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 2,ny+1
 		write(100,*) (Tp2(xx,yy), xx = 1,nx)
 	end do 
 	close(100)
 
-	open(unit = 100, file = trim(adjustl(today))//'/o2/B2(nxxny)-'  & 
+	open(unit = 100, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/B2(nxxny)-'  & 
 		//trim(adjustl(numtemp))//'.txt', status = 'replace')
 	do yy = 2,ny+1
 		write(100,*) (B2(xx,yy), xx = 1,nx)
@@ -1279,6 +1316,10 @@ if (chk_particles .and. flg_stop) then
     
 end if 
 
+if (calc_perm) then 
+    write(File_Perm,*) Time*Timescale, perm_u,perm_d
+endif 
+
 end subroutine flow_calc
 ! =================================================================
 subroutine output_flow()
@@ -1286,7 +1327,7 @@ use GlobalVariables
 implicit none 
 integer(kind=4) :: nx , ny , xx, yy
 real(kind=8)  :: delx, dely
-Character*21 numtemp
+Character*21 numtemp, cat_tmp 
 
 real(kind=8) ,allocatable :: Pc(:,:)
 real(kind=8) ,allocatable :: Uc(:,:)
@@ -1324,13 +1365,19 @@ Vm = Vg
 Pc = Pg
 Dc = Dg
 
-open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-Um-'  & 
+if (calc_perm) then
+    cat_tmp = 'geo'
+else 
+    cat_tmp = 'o2'
+endif
+
+open(unit = 100, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-Um-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
 do yy = 1,ny+2
 	write(100,*) (Um(xx,yy), xx = 1,nx+1)
 end do 
 close(100)
-open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-Vm-'  & 
+open(unit = 100, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-Vm-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
 do yy = 1,ny+2+1
 	write(100,*) (Vm(xx,yy), xx = 1,nx)
@@ -1364,19 +1411,19 @@ do xx = 1, nx
 	end do 
 end do
 
-open(unit = 100, file = trim(adjustl(today))//'/o2/test2d(F)-Uc-'  & 
+open(unit = 100, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-Uc-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 200, file = trim(adjustl(today))//'/o2/test2d(F)-Vc-'  & 
+open(unit = 200, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-Vc-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 300, file = trim(adjustl(today))//'/o2/test2d(F)-Pc-'  & 
+open(unit = 300, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-Pc-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 400, file = trim(adjustl(today))//'/o2/test2d(F)-Dc-'  & 
+open(unit = 400, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-Dc-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 500, file = trim(adjustl(today))//'/o2/test2d(F)-vabs-'  & 
+open(unit = 500, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-vabs-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 600, file = trim(adjustl(today))//'/o2/test2d(F)-Qcx-'  & 
+open(unit = 600, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-Qcx-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
-open(unit = 700, file = trim(adjustl(today))//'/o2/test2d(F)-Qcy-'  & 
+open(unit = 700, file = trim(adjustl(today))//'/'//trim(adjustl(cat_tmp))//'/test2d(F)-Qcy-'  & 
 	//trim(adjustl(numtemp))//'.txt', status = 'replace')
 do yy = 2,ny+1
 	write(100,*) (Uc(xx,yy), xx = 1,nx)

@@ -83,6 +83,8 @@
       '/Core_L.txt', status = 'unknown')
    OPEN(unit = File_Core_A, file = trim(adjustl(Today))//'/geo'// &
       '/Core_A.txt', status = 'unknown')
+   OPEN(unit = File_Perm, file = trim(adjustl(Today))//'/geo'// &
+      '/permeability.OUT', status = 'unknown')
    OPEN(unit = File_Pop, file = trim(adjustl(Today))//'/eco'//  &
       '/Pop.OUT', status = 'unknown')
    OPEN(unit = File_sedrate, file = trim(adjustl(Today))//  &
@@ -261,6 +263,7 @@
 		   
       rec_flow = .false.
       if (flow_ON) then 
+         calc_perm = .false. 
          if (any(abs(Vb)/=0).or.any(abs(Ub)/=0)) then 
                
             do i = 1,N_ind
@@ -369,7 +372,10 @@
          O2%oxygen_use = 0.0
       Endif
          
-      if (errDetect .and. errChk) then; call Output_txtImg(); call Output_txtImg_chk(); endif
+      if (errDetect .and. errChk) then
+         call Output_txtImg()
+         call Output_txtImg_chk()
+      endif
 		 
        ! check if time to output data
       If (Any(Time .eq. Time_Output)) then
@@ -390,6 +396,12 @@
                if (rec_flow) call output_flow()
                Call Output_txtImg()
                call Output_txtImg_chk()
+               if (Perm_Rec) then 
+                  calc_perm = .true. 
+                  call flow_calc() 
+                  call output_flow()
+                  calc_perm = .false. 
+               endif                   
                Savetime = savetime + 1       
             End If
             If ((Time - TimeNEW) .GT. 10*Day) then  ! continue output for 10 days
@@ -407,6 +419,13 @@
             Call Output_txtImg()
             call Output_txtImg_chk()
             O2%oxygen_use = 0.0
+            
+            if (Perm_Rec) then 
+               calc_perm = .true. 
+               call flow_calc() 
+               call output_flow()
+               calc_perm = .false. 
+            endif      
           
             Savetime = savetime + 1       
             TimeToOutput = .false.                  ! turn off output until the next output time
@@ -523,6 +542,7 @@
    Close(File_Core_M)
    Close(File_Core_L)
    Close(File_Core_A)
+   Close(File_Perm)
    Close(File_Pop)
    Close(File_sedrate)
    Close(File_profile_st)
@@ -596,6 +616,7 @@
    READ(File_Parameters,*) trans_making       ! making transition matrix
    READ(File_Parameters,*) Long_Run           ! if yes, recording is less frequent 
    READ(File_Parameters,*) O2lim_on           ! limiting depths of animals with some threshold o2 conc. (non working right now)
+   READ(File_Parameters,*) Perm_Rec           ! calculating and recording permeability change 
    CLOSE(File_Parameters)
        
    ! input user defined variables .. some constants in eLABS 

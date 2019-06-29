@@ -3,7 +3,7 @@ true	oxFB_ON
 true	Resp_ON
 true	errCHk
 false	I_shape
-true	flow_ON
+false	flow_ON
 false	only_sed
 false	Detail_Log
 false	Incl_ASH
@@ -14,3 +14,4 @@ false	non_pop
 false	trans_making
 false	Long_Run
 false	O2lim_on
+true    Perm_Rec
