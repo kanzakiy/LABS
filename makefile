@@ -9,6 +9,8 @@ switch = -O2 -fimplicit-none  -Wall  -Wline-truncation  -Wcharacter-truncation  
 # switch = 
 libs = -lumfpack -lamd -lcholmod -lcolamd -lsuitesparseconfig -llapack -lopenblas
 f90comp = gfortran
+# preproc = -cpp -Dver2 -Dflxver2
+preproc = 
 # Makefile
 labs: $(objects)
 	$(f90comp) -o $@ $(switch) $(objects) $(wrapper) $(libs)
@@ -25,8 +27,8 @@ o2_diffusion.mod: globalvariables.mod mod_o2_dif+adv.o mod_o2_dif+adv.f90
 ns_mac_2d.mod: globalvariables.mod mod_NS_MAC_2D.o mod_NS_MAC_2D.f90
 	$(f90comp) -c $(switch) mod_NS_MAC_2D.f90
 %.o: %.f90
-	$(f90comp) -c $(switch) $<
+	$(f90comp) -c $(switch) $(preproc) $<
 # Cleaning everything
 clean:
-	rm $(objects)
+	rm $(objects) labs
 # End of the makefile

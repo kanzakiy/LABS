@@ -243,7 +243,10 @@ real(kind=8) :: merge2
 real(kind=8) :: do2dt
 real(kind=8) :: TotOrgDecay_tmp, TotResp_tmp, TotO2Dif_tmp
 real(kind=8) :: TotAbio_tmp, TotO2Adv_tmp, do2dt_tmp, resO2_tmp
-
+logical :: chk_details = .false.
+logical :: flg_stop = .false.
+integer(kind=4):: col,row, xp,xg, yp,yg, ppp,ai_tmp(5),ai_sort(5)
+real(kind=8) :: ax_tmp(5)
 oxup = pal
 
 if (time==0) print*,oxup,pal
@@ -393,714 +396,242 @@ b = 0.
 dt = TImescale/365./real(totstep)  ! yr
 dx = PixelSIze  ! cm
 
-cnt2 = 1
+ap(1) = 0
 do yy = y_int  + 1, y_fin
+
     do xx = 1, n_col
 
         if (matrix(yy,xx)%class == p) cycle
-
-        j = cnt_rec(yy,xx)    ! matrix number
-        cnt = 0
-
-        ox_c = O2(yy,xx)%Oxygen
-        dif_c = dif_0
-        if (matrix(yy,xx)%Class >= 1) dif_c = dif_c*org_dif_fact 
-
-        if (Uo(xx,yy) == 0.) tmpU = 1D20
-        if (Uo(xx,yy) /= 0.) tmpU = Uo(xx,yy)
-        if (Vo(xx,yy) == 0.) tmpV = 1D20
-        if (Vo(xx,yy) /= 0.) tmpV = Vo(xx,yy)
-
-        rx_ex = merge(1d0, 0d0,  &
-            (fact_law1==0d0 .and. fact_law2==0d0).or. &
-            (fact_Law1==1d0 .and. O2(yy,xx)%oxygen > mo2/iox))
-        rx_imp = merge(1d0,0d0,  &
-            (fact_law1==1d0 .and. o2(yy,xx)%oxygen <= mo2/iox).or.  &
-            (fact_law1==0d0 .and. fact_law2==1d0))  
-        rxn = rx_ex*O2(yy,xx)%oxygen_use*O2(yy,xx)%oxygen  
-
-        b(j) = b(j) + (- ox_c)/dt + rxn
+        
+        ai_tmp = 0
+        ax_tmp = 0d0
+        
+        row = cnt_rec(yy,xx)
+        cnt2 = 1
+        ai_tmp( 1 ) = row 
+        ax_tmp( 1 ) = ax_tmp( 1 ) - o2(yy,xx)%oxygen_use
+        ax_tmp( 1 ) = ax_tmp( 1 ) - (1d0-0d0)/dt   
+        b(row)      = b(row)       - (0d0-tmpo2(yy,xx))/dt  
 
         if (yy == y_int  + 1) then
-
-            b(j) = b(j) -edif(yy,xx)*oxup/dx/dx  + imp*(Vo(xx,yy)+abs(Vo(xx,yy)))*(-oxup)/dx*0.5d0   &	 !  upper boundary condition
-                + epl*((Vo(xx,yy)+abs(Vo(xx,yy)))*(O2(yy,xx)%oxygen-oxup) )/dx*0.5d0   &
-                ! + epl*cntgrad*(Vo(xx,yy)+abs(Vo(xx,yy)))/tmpV*O2(yy,xx)%oxygen*(Vo(xx,yy)-Vo(xx,yy-1))/dx/2.d0   &
-                -(edif(yy,xx)-edif(yy-1,xx))*(-oxup)/dx/dx
-
-            if (xx == 1) then
-
-                k = cnt_rec(yy,xx)
-                ax(cnt2) = ax(cnt2) +edif(yy,xx)*(-1d0)/dx/dx - 1d0/dt - imp*(Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0)/dx   &
-                    ! - imp*cntgrad*(Vo(xx,yy)+abs(Vo(xx,yy)))/tmpV/2.d0*(Vo(xx,yy)-Vo(xx,yy-1))/dx   &
-                    - rx_imp*o2(yy,xx)%oxygen_use  &
-                    + (edif(yy,xx)-edif(yy-1,xx))*(1d0)/dx/dx
-                ai(cnt2) = k 
-                cnt2 = cnt2 + 1
-                cnt = cnt + 1
-
-                cnt3 = 0
-
-                if (matrix(yy,xx+1)%class /=p) then 
-
-                    k = cnt_rec(yy,xx+1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,xx+1)/dx/dx - imp*(Uo(xx+1,yy)+abs(Uo(xx+1,yy)))*0.5d0*(-1d0/dx)  &
-                        +(edif(yy,xx+1) - edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(-1d0/dx)   & 
-                        ! - imp*cntgrad*(Uo(xx,yy)-abs(Uo(xx,yy)))*(Uo(2,yy) - Uo(xx,yy))/dx/2d0/tmpU  &
-                        + edif(yy,xx)*(-1d0)/dx/dx 
-                    b(j) = b(j) + epl*((Uo(xx,yy)-abs(Uo(xx,yy)))*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                if (matrix(yy,n_col)%class /=p) then 
-
-                    k = cnt_rec(yy,n_col) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,n_col)/dx/dx - imp*(Uo(n_col,yy)-abs(Uo(n_col,yy)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0/dx) & 
-                        ! - imp*cntgrad*(Uo(xx,yy)+abs(Uo(xx,yy)))*(Uo(xx,yy) - Uo(n_col,yy))/dx/2d0/tmpU   &
-                        + edif(yy,xx)*(-1d0)/dx/dx + (edif(yy,xx) - edif(yy, n_col))*(1d0)/dx/dx
-                    b(j) = b(j) + epl*((Uo(xx,yy)+abs(Uo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy,n_col)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                if (matrix(yy+1,xx)%class /=p) then 
-
-                    k = cnt_rec(yy+1,xx) 
-                    ax(cnt2) = ax(cnt2) + edif(yy+1,xx)/dx/dx - imp*(Vo(xx,yy+1)+abs(Vo(xx,yy+1)))*0.5d0*(-1d0/dx)   &
-                        + (edif(yy+1,xx) - edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(-1d0/dx) & 
-                        ! - imp*cntgrad*(Vo(xx,yy)-abs(Vo(xx,yy)))*(Vo(xx,yy+1) - Vo(xx,yy))/dx/2d0/tmpV   &
-                        + edif(yy,xx)*(-1d0)/dx/dx
-                    b(j) = b(j) + epl*((Vo(xx,yy)-abs(Vo(xx,yy)))*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-            else if (xx == n_col) then
-
-                cnt3 = 0
-                cnt4 = 0
-
-                if (matrix(yy,1)%class /=p) then 
-
-                    k = cnt_rec(yy,1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,1)/dx/dx - imp*(Uo(1,yy)+abs(Uo(1,yy)))*0.5d0*(-1d0/dx)  &
-                        + (edif(yy,1)-edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    cnt4 = 1
-
-                    b(j) = b(j) + epl*((Uo(xx,yy)-abs(Uo(xx,yy)))*(O2(yy,1)%oxygen-O2(yy,xx)%oxygen)/2d0 )/dx
+        
+            ax_tmp( 1 ) = ax_tmp( 1 ) - edif(yy,xx)*(1.0d0  - 0d0)/dx/dx &
+                + (edif(yy,xx)-edif(yy-1,xx))*(1.0d0-0d0)/dx/dx
+            b(row)      = b(row)       - edif(yy,xx)*(0d0 - oxup)/dx/dx &
+                + (edif(yy,xx)-edif(yy-1,xx))*(0d0-oxup)/dx/dx   
                 
-                end if
-
-                if (matrix(yy,xx - 1)%class /=p) then 
-
-                    k = cnt_rec(yy,xx- 1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,xx-1)/dx/dx - imp*(Uo(xx-1,yy)-abs(Uo(xx-1,yy)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    ax(cnt2) = ax(cnt2) - imp*(Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0/dx) & 
-                        ! - imp*cntgrad*(Uo(xx,yy)+abs(Uo(xx,yy)))/2d0/tmpU*(Uo(xx,yy)-Uo(n_col-1,yy))/dx  &
-                        + edif(yy,xx)*(-1d0)/dx/dx + (edif(yy,xx)- edif(yy,xx-1))*(1d0)/dx/dx
-                    b(j) = b(j) + epl*((Uo(xx,yy)+abs(Uo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy,n_col-1)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                k = cnt_rec(yy,xx)
-                ax(cnt2) = ax(cnt2) -edif(yy,xx)*(1d0)/dx/dx - 1d0/dt - imp*(Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0)/dx  &
-                    ! - imp*cntgrad*(Vo(xx,yy)+abs(Vo(xx,yy)))/tmpV/2d0*(Vo(xx,yy)-Vo(xx,yy-1))/dx   &
-                    - rx_imp*o2(yy,xx)%oxygen_use    &
-                    + (edif(yy,xx) - edif(yy-1,xx))*(1d0)/dx/dx              &
-                    + cnt4*(- imp*(Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(-1d0/dx) & 
-                    ! - imp*cntgrad*(Uo(xx,yy)-abs(Uo(xx,yy)))*(Uo(1,yy) - Uo(xx,yy))/dx/2d0/tmpU  &
-                    + edif(yy,xx)*(-1d0)/dx/dx )
-                ai(cnt2) = k 
-                cnt2 = cnt2 + 1
-                cnt = cnt + 1
-
-                cnt3 = 0
-
-                if (matrix(yy+1,xx)%class /=p) then 
-
-                    k = cnt_rec(yy+1,xx) 
-                    ax(cnt2) = ax(cnt2) + edif(yy+1,xx)/dx/dx - imp*(Vo(xx,yy+1)+abs(Vo(xx,yy+1)))*0.5d0*(-1d0/dx)   &
-                        + (edif(yy+1,xx)-edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(-1d0/dx) & 
-                        ! - imp*cntgrad*(Vo(xx,yy)-abs(Vo(xx,yy)))*(Vo(xx,yy+1) - Vo(xx,yy))/dx/2d0/tmpV   &
-                        + edif(yy,xx)*(-1d0)/dx/dx
-                    b(j) = b(j) + epl*((Vo(xx,yy)-abs(Vo(xx,yy)))*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-            else 
-
-                cnt3 = 0
-
-                if (matrix(yy,xx-1)%class /=p) then 
-
-                    k = cnt_rec(yy,xx - 1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,xx-1)/dx/dx - imp*(Uo(xx-1,yy)-abs(Uo(xx-1,yy)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    ax(cnt2) = ax(cnt2) - imp*(Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0/dx)  &
-                        ! - imp*cntgrad*(Uo(xx,yy)+abs(Uo(xx,yy)))/2d0/tmpU*(Uo(xx,yy)-Uo(xx-1,yy))/dx   &
-                        + edif(yy,xx)*(-1d0)/dx/dx + (edif(yy,xx) - edif(yy,xx-1))*(1d0)/dx/dx
-                    b(j) = b(j) + epl*((Uo(xx,yy)+abs(Uo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                k = cnt_rec(yy,xx)
-                ax(cnt2) = ax(cnt2) -edif(yy,xx)*(1d0)/dx/dx - 1d0/dt - imp*(Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0)/dx &
-                    ! - imp*cntgrad*(Vo(xx,yy)+abs(Vo(xx,yy)))/tmpV/2d0*(Vo(xx,yy)-Vo(xx,yy-1))/dx   &
-                    - rx_imp*o2(yy,xx)%oxygen_use   &
-                    + (edif(yy,xx) - edif(yy-1,xx))*(1d0)/dx/dx
-                ai(cnt2) = k 
-                cnt2 = cnt2 + 1
-                cnt = cnt + 1
-
-                cnt3 = 0
-
-                if (matrix(yy,xx + 1)%class /=p) then 
-
-                    k = cnt_rec(yy,xx + 1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,xx+1)/dx/dx - imp*(Uo(xx+1,yy)+abs(Uo(xx+1,yy)))*0.5d0*(-1d0/dx)   &
-                        + (edif(yy,xx+1) - edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(-1d0/dx) & 
-                        ! - imp*cntgrad*(Uo(xx,yy)-abs(Uo(xx,yy)))*(Uo(xx+1,yy) - Uo(xx,yy))/dx/2d0/tmpU  &
-                        + edif(yy,xx)*(-1d0)/dx/dx 
-                    b(j) = b(j) + epl*((Uo(xx,yy)-abs(Uo(xx,yy)))*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                if (matrix(yy+1,xx)%class /=p) then 
-
-                    k = cnt_rec(yy+1,xx) 
-                    ax(cnt2) = ax(cnt2) + edif(yy+1,xx)/dx/dx - imp*(Vo(xx,yy+1)+abs(Vo(xx,yy+1)))*0.5d0*(-1d0/dx)   &
-                        + (edif(yy+1,xx) - edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(-1d0/dx) & 
-                        ! - imp*cntgrad*(Vo(xx,yy)-abs(Vo(xx,yy)))*(Vo(xx,yy+1) - Vo(xx,yy))/dx/2d0/tmpV   &
-                        + edif(yy,xx)*(-1d0)/dx/dx 
-                    b(j) = b(j) + epl*((Vo(xx,yy)-abs(Vo(xx,yy)))*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen)/2d0)/dx
-                    
-                end if
-
-            end if
+            ax_tmp( 1 ) = ax_tmp( 1 ) - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0-0d0) )/dx
+            b(row)      = b(row)       - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(0d0-oxup) )/dx 
+            
+            xp = xx + 1
+            xg = xx - 1
+            yp = yy + 1
+            
+            if (xp > n_col) xp = 1
+            if (xg < 1) xg = n_col
+                
+            if (matrix(yy,xp)%class /=p) then 
+                col = cnt_rec(yy,xp)
+                cnt2 = cnt2+ 1
+                ai_tmp(cnt2) = col 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xp)*(1d0 - 0d0)/dx/dx  &
+                    + (edif(yy,xp)-edif(yy,xx))*(0d0 - 1d0)/dx/dx 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(0d0-1d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uo(xp,yy)+abs(Uo(xp,yy)))*0.5d0*(0d0-1d0) )/dx 
+            endif 
+                
+            if (matrix(yy,xg)%class /=p) then 
+                col = cnt_rec(yy,xg)
+                cnt2 = cnt2+ 1
+                ai_tmp(cnt2) = col 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  &
+                    + (edif(yy,xx)-edif(yy,xg))*(1d0 - 0d0)/dx/dx 
+                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xg)*(1d0 - 0d0)/dx/dx  
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uo(xg,yy)-abs(Uo(xg,yy)))*0.5d0*(1d0-0d0) )/dx 
+            endif 
+                
+            if (matrix(yp,xx)%class /=p) then 
+                col = cnt_rec(yp,xx)
+                cnt2 = cnt2+ 1
+                ai_tmp(cnt2) = col 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yp,xx)*(1d0 - 0d0)/dx/dx  &
+                    + (edif(yp,xx)-edif(yy,xx))*(0d0 - 1d0)/dx/dx 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(0d0-1d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Vo(xx,yp)+abs(Vo(xx,yp)))*0.5d0*(0d0-1d0) )/dx 
+            endif 
 
         ELSE IF (yy == y_fin) THEN
-
-            if (xx == 1) then
-
-                cnt3 = 0
-
-                if (matrix(yy - 1,xx )%class /=p) then 
-
-                    k = cnt_rec(yy - 1,xx) 
-                    ax(cnt2) = ax(cnt2) + edif(yy-1,xx)/dx/dx - imp*(Vo(xx,yy-1)-abs(Vo(xx,yy-1)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    ax(cnt2) = ax(cnt2) - imp*(Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0/dx) &
-                        ! - cntgrad*imp*(Vo(xx,yy)+abs(Vo(xx,yy)))/2d0/tmpV*(Vo(xx,yy)-Vo(xx,yy-1))/dx   &
-                        + edif(yy,xx)*(-1d0)/dx/dx + (edif(yy,xx) -edif(yy-1,xx))*(1d0)/dx/dx
-                    b(j) = b(j) + epl*((Vo(xx,yy)+abs(Vo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen)/2d0)/dx
-                    
-                end if
-
-                k = cnt_rec(yy,xx)
-                ax(cnt2) = ax(cnt2)  - 1d0/dt   &
-                    - rx_imp*o2(yy,xx)%oxygen_use
-                ai(cnt2) = k 
-                cnt2 = cnt2 + 1
-                cnt = cnt + 1
-
-                cnt3 = 0
-
-                if (matrix(yy,xx + 1)%class /=p) then 
-
-                    k = cnt_rec(yy,xx + 1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,xx+1)/dx/dx - imp*(Uo(xx+1,yy)+abs(Uo(xx+1,yy)))*0.5d0*(-1d0/dx)  &
-                        + (edif(yy,xx+1) - edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(-1d0/dx) & 
-                        ! - imp*cntgrad*(Uo(xx,yy)-abs(Uo(xx,yy)))*(Uo(xx+1,yy) - Uo(xx,yy))/dx/2d0/tmpU   &
-                        + edif(yy,xx)*(-1d0)/dx/dx 
-                    b(j) = b(j) + epl*((Uo(xx,yy)-abs(Uo(xx,yy)))*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                if (matrix(yy,n_col)%class /=p) then 
-
-                    k = cnt_rec(yy,n_col) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,n_col)/dx/dx - imp*(Uo(n_col,yy)-abs(Uo(n_col,yy)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0/dx) &
-                        ! - cntgrad*imp*(Uo(xx,yy)+abs(Uo(xx,yy)))/2d0/tmpU*(Uo(xx,yy) - Uo(n_col,yy))/dx  &
-                        + edif(yy,xx)*(-1d0)/dx/dx + (edif(yy,xx) - edif(yy,n_col))*(1d0)/dx/dx
-                    b(j) = b(j) + epl*((Uo(xx,yy)+abs(Uo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy,n_col)%oxygen)/2d0 )/dx
-                    
-                end if
-
-            else if (xx == n_col) then
-
-                cnt3 = 0
-                cnt4 = 0
-                cnt5 = 0
-
-                if (matrix(yy - 1,xx)%class /=p) then 
-
-                    k = cnt_rec(yy - 1,xx) 
-                    ax(cnt2) = ax(cnt2) + edif(yy-1,xx)/dx/dx - imp*(Vo(xx,yy-1)-abs(Vo(xx,yy-1)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    cnt4 = 1
-
-                    b(j) = b(j) + epl*((Vo(xx,yy)+abs(Vo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                if (matrix(yy,1)%class /=p) then 
-
-                    k = cnt_rec(yy,1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,1)/dx/dx - imp*(Uo(1,yy)+abs(Uo(1,yy)))*0.5d0*(-1d0/dx)  &
-                        + (edif(yy,1) - edif(yy, xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    cnt5 = 1
-
-                    b(j) = b(j) + epl*((Uo(xx,yy)-abs(Uo(xx,yy)))*(O2(yy,1)%oxygen-O2(yy,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                if (matrix(yy,xx - 1)%class /=p) then 
-
-                    k = cnt_rec(yy,xx - 1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,xx-1)/dx/dx - imp*(Uo(xx-1,yy)-abs(Uo(xx-1,yy)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    ax(cnt2) = ax(cnt2) - imp*(Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0/dx) &
-                        ! - cntgrad*imp*(Uo(xx,yy)+abs(Uo(xx,yy)))/2d0/tmpU*(Uo(xx,yy) - Uo(xx-1,yy))/dx  &
-                        + edif(yy,xx)*(-1d0)/dx/dx + (edif(yy,xx) - edif(yy,xx-1))*(1d0)/dx/dx
-                    b(j) = b(j) + epl*((Uo(xx,yy)+abs(Uo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                k = cnt_rec(yy,xx)
-                ax(cnt2) = ax(cnt2)  - 1d0/dt & 
-                    - imp*cnt4*(Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0/dx) &
-                    ! -imp*cnt4*cntgrad*(Vo(xx,yy)+abs(Vo(xx,yy)))/2d0/tmpV*(Vo(xx,yy) - Vo(xx,yy-1))/dx  &
-                    - imp*cnt5*(Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(-1d0/dx) &
-                    ! - imp*cnt5*cntgrad*(Uo(xx,yy)-abs(Uo(xx,yy)))/2d0/tmpU*(Uo(1,yy) - Uo(xx,yy))/dx   &
-                    - rx_imp*o2(yy,xx)%oxygen_use    &
-                    + cnt4*edif(yy,xx)*(-1d0)/dx/dx + cnt4*(edif(yy,xx)-edif(yy-1,xx))*(1d0)/dx/dx   &
-                    + cnt5*edif(yy,xx)*(-1d0)/dx/dx 
-                ai(cnt2) = k 
-                cnt2 = cnt2 + 1
-                cnt = cnt + 1
-
-            else 
-
-                cnt3 = 0
-                cnt4 = 0
-
-                if (matrix(yy - 1,xx)%class /=p) then 
-
-                    k = cnt_rec(yy - 1,xx) 
-                    ax(cnt2) = ax(cnt2) + edif(yy-1,xx)/dx/dx - imp*(Vo(xx,yy-1)-abs(Vo(xx,yy-1)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    cnt4 = 1
-
-                    b(j) = b(j) + epl*((Vo(xx,yy)+abs(Vo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                if (matrix(yy,xx - 1)%class /=p) then 
-
-                    k = cnt_rec(yy,xx - 1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,xx-1)/dx/dx - imp*(Uo(xx-1,yy)-abs(Uo(xx-1,yy)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    ax(cnt2) = ax(cnt2) - imp*(Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0/dx) &
-                        ! - cntgrad*imp*(Uo(xx,yy)+abs(Uo(xx,yy)))/2d0/tmpU*(Uo(xx,yy) - Uo(xx-1,yy))/dx   & 
-                        + edif(yy,xx)*(-1d0)/dx/dx +(edif(yy,xx) - edif(yy, xx-1))*(1d0)/dx/dx 
-                    b(j) = b(j) + epl*((Uo(xx,yy)+abs(Uo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                k = cnt_rec(yy,xx)
-                ax(cnt2) = ax(cnt2)  - 1d0/dt &
-                    - imp*cnt4*(Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0/dx) &
-                    ! -imp*cnt4*cntgrad*(Vo(xx,yy)+abs(Vo(xx,yy)))/2d0/tmpV*(Vo(xx,yy)-Vo(xx,yy-1))/dx   &
-                    - rx_imp*o2(yy,xx)%oxygen_use   &
-                    +cnt4*edif(yy,xx)*(-1d0)/dx/dx + cnt4*(edif(yy,xx) - edif(yy-1,xx))*(1d0)/dx/dx  
-                ai(cnt2) = k 
-                cnt2 = cnt2 + 1
-                cnt = cnt + 1
-
-                cnt3 = 0
-
-                if (matrix(yy,xx + 1)%class /=p) then 
-
-                    k = cnt_rec(yy,xx + 1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,xx+1)/dx/dx - imp*(Uo(xx+1,yy)+abs(Uo(xx+1,yy)))*0.5d0*(-1d0/dx)  & 
-                        + (edif(yy,xx+1) - edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(-1d0/dx) & 
-                        ! - imp*cntgrad*(Uo(xx,yy)-abs(Uo(xx,yy)))*(Uo(xx+1,yy) - Uo(xx,yy))/dx/2d0/tmpU   &
-                        + edif(yy,xx)*(-1d0)/dx/dx 
-                    b(j) = b(j) + epl*((Uo(xx,yy)-abs(Uo(xx,yy)))*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen)/2d0)/dx
-                    
-                end if
-
-            end if 
+        
+            xp = xx + 1
+            xg = xx - 1
+            yg = yy - 1
+            
+            if (xp > n_col) xp = 1
+            if (xg < 1) xg = n_col
+                
+            if (matrix(yy,xp)%class /=p) then 
+                col = cnt_rec(yy,xp)
+                cnt2 = cnt2+ 1
+                ai_tmp(cnt2) = col 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xp)*(1d0 - 0d0)/dx/dx  &
+                    + (edif(yy,xp)-edif(yy,xx))*(0d0 - 1d0)/dx/dx 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(0d0-1d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uo(xp,yy)+abs(Uo(xp,yy)))*0.5d0*(0d0-1d0) )/dx 
+            endif 
+                
+            if (matrix(yy,xg)%class /=p) then 
+                col = cnt_rec(yy,xg)
+                cnt2 = cnt2+ 1
+                ai_tmp(cnt2) = col 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  &
+                    + (edif(yy,xx)-edif(yy,xg))*(1d0 - 0d0)/dx/dx 
+                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xg)*(1d0 - 0d0)/dx/dx  
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uo(xg,yy)-abs(Uo(xg,yy)))*0.5d0*(1d0-0d0) )/dx 
+            endif 
+                
+            if (matrix(yg,xx)%class /=p) then 
+                col = cnt_rec(yg,xx)
+                cnt2 = cnt2+ 1
+                ai_tmp(cnt2) = col 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  &
+                    + (edif(yy,xx)-edif(yg,xx))*(1d0 - 0d0)/dx/dx 
+                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yg,xx)*(1d0 - 0d0)/dx/dx  
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Vo(xx,yg)-abs(Vo(xx,yg)))*0.5d0*(1d0-0d0) )/dx 
+            endif 
 
         ELSE 
-
-            if (xx == 1) then
-
-                cnt3 = 0
-
-                if (matrix(yy - 1,xx)%class /=p) then 
-
-                    k = cnt_rec(yy - 1,xx) 
-                    ax(cnt2) = ax(cnt2) + edif(yy-1,xx)/dx/dx - imp*(Vo(xx,yy-1) - abs(Vo(xx,yy-1)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    ax(cnt2) = ax(cnt2) - imp*(Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0/dx) &
-                        ! - cntgrad*imp*(Vo(xx,yy)+abs(Vo(xx,yy)))/2d0/tmpV*(Vo(xx,yy) - Vo(xx,yy-1))/dx  & 
-                        + edif(yy,xx)*(-1d0)/dx/dx + (edif(yy,xx) - edif(yy-1,xx))*(1d0)/dx/dx
-                    b(j) = b(j) + epl*((Vo(xx,yy)+abs(Vo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                k = cnt_rec(yy,xx)
-                ax(cnt2) = ax(cnt2) - 1d0/dt   &
-                    - rx_imp*o2(yy,xx)%oxygen_use
-                ai(cnt2) = k 
-                cnt2 = cnt2 + 1
-                cnt = cnt + 1
-
-                cnt3 = 0
-
-                if (matrix(yy,xx+1)%class /=p) then 
-
-                    k = cnt_rec(yy,xx+1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,xx+1)/dx/dx - imp*(Uo(xx+1,yy)+abs(Uo(xx+1,yy)))*0.5d0*(-1d0/dx)  &
-                        + (edif(yy,xx+1) - edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(-1d0/dx) & 
-                        ! - imp*cntgrad*(Uo(xx,yy)-abs(Uo(xx,yy)))*(Uo(xx+1,yy) - Uo(xx,yy))/dx/2d0/tmpU   &
-                        + edif(yy,xx)*(-1d0)/dx/dx 
-                    b(j) = b(j) + epl*((Uo(xx,yy)-abs(Uo(xx,yy)))*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                if (matrix(yy,n_col)%class /=p) then 
-
-                    k = cnt_rec(yy,n_col) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,n_col)/dx/dx - imp*(Uo(n_col,yy)-abs(Uo(n_col,yy)))*0.5d0*(1d0/dx)  
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0/dx) &
-                        ! - cntgrad*imp*(Uo(xx,yy)+abs(Uo(xx,yy)))/2d0/tmpU*(Uo(xx,yy)-Uo(n_col,yy))/dx   & 
-                        + edif(yy,xx)*(-1d0)/dx/dx + (edif(yy,xx) - edif(yy,n_col))*(1d0)/dx/dx
-                    b(j) = b(j) + epl*((Uo(xx,yy)+abs(Uo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy,n_col)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                if (matrix(yy + 1,xx)%class /=p) then 
-
-                    k = cnt_rec(yy + 1,xx) 
-                    ax(cnt2) = ax(cnt2) + edif(yy+1,xx)/dx/dx - imp*(Vo(xx,yy+1)+abs(Vo(xx,yy+1)))*0.5d0*(-1d0/dx)  &
-                        + (edif(yy+1,xx) - edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(-1d0/dx) & 
-                        ! - imp*cntgrad*(Vo(xx,yy)-abs(Vo(xx,yy)))*(Vo(xx,yy+1) - Vo(xx,yy))/dx/2d0/tmpV   &
-                        + edif(yy,xx)*(-1d0)/dx/dx 
-                    b(j) = b(j) + epl*((Vo(xx,yy)-abs(Vo(xx,yy)))*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-            else if (xx == n_col) then
-
-                cnt3 = 0
-                cnt4 = 0
-                cnt5 = 0
-
-                if (matrix(yy - 1,xx)%class /=p) then 
-
-                    k = cnt_rec(yy - 1,xx) 
-                    ax(cnt2) = ax(cnt2) + edif(yy-1,xx)/dx/dx - imp*(Vo(xx,yy-1)-abs(Vo(xx,yy-1)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    cnt4 = 1
-
-                    b(j) = b(j) + epl*((Vo(xx,yy)+abs(Vo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                if (matrix(yy,  1)%class /=p) then 
-
-                    k = cnt_rec(yy, 1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,1)/dx/dx - imp*(Uo(1,yy)+abs(Uo(1,yy)))*0.5d0*(-1d0/dx)  &
-                        + (edif(yy,1) - edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    cnt5 = 1
-
-                    b(j) = b(j) + epl*((Uo(xx,yy)-abs(Uo(xx,yy)))*(O2(yy,1)%oxygen-O2(yy,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                if (matrix(yy, xx - 1)%class /=p) then 
-
-                    k = cnt_rec(yy, xx - 1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy, xx-1)/dx/dx - imp*(Uo(xx-1,yy)-abs(Uo(xx-1,yy)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    ax(cnt2) = ax(cnt2) - imp*(Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0/dx) &
-                        ! - cntgrad*imp*(Uo(xx,yy)+abs(Uo(xx,yy)))/2d0/tmpU*(Uo(xx,yy)- Uo(xx-1,yy))/dx   & 
-                        + edif(yy,xx)*(-1d0)/dx/dx + (edif(yy,xx) - edif(yy, xx-1))*(1d0)/dx/dx
-                    b(j) = b(j) + epl*((Uo(xx,yy)+abs(Uo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                k = cnt_rec(yy,xx)
-                ax(cnt2) = ax(cnt2)  - 1d0/dt  &
-                    - imp*cnt4*(Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0/dx)  & 
-                    ! - imp*cnt4*cntgrad*(Vo(xx,yy)+abs(Vo(xx,yy)))/2d0/tmpV*(Vo(xx,yy)-Vo(xx,yy-1))/dx  &
-                    - imp*cnt5*(Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(-1d0/dx)   &
-                    ! - imp*cnt5*cntgrad*(Uo(xx,yy)-abs(Uo(xx,yy)))/2d0/tmpU*(Uo(1,yy)-Uo(xx,yy))/dx   &
-                    - rx_imp*o2(yy,xx)%oxygen_use   &
-                    + cnt4*edif(yy,xx)*(-1d0)/dx/dx + cnt4*(edif(yy,xx)- edif(yy-1,xx))*(1d0)/dx/dx   &
-                    + cnt5*edif(yy,xx)*(-1d0)/dx/dx
-                ai(cnt2) = k 
-                cnt2 = cnt2 + 1
-                cnt = cnt + 1
-
-                cnt3 = 0
-
-                if (matrix(yy+1,xx)%class /=p) then 
-
-                    k = cnt_rec(yy+1,xx) 
-                    ax(cnt2) = ax(cnt2) + edif(yy+1,xx)/dx/dx - imp*(Vo(xx,yy+1)+abs(Vo(xx,yy+1)))*0.5d0*(-1d0/dx)   &
-                        + (edif(yy+1,xx) - edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(-1d0/dx) & 
-                        ! - imp*cntgrad*(Vo(xx,yy)-abs(Vo(xx,yy)))*(Vo(xx,yy+1) - Vo(xx,yy))/dx/2d0/tmpV  &
-                        + edif(yy,xx)*(-1d0)/dx/dx 
-                    b(j) = b(j) + epl*((Vo(xx,yy)-abs(Vo(xx,yy)))*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-            else 
-
-                cnt3 = 0
-                cnt4 = 0
-
-                if (matrix(yy - 1,xx)%class /=p) then 
-
-                    k = cnt_rec(yy - 1,xx) 
-                    ax(cnt2) = ax(cnt2) + edif(yy-1,xx)/dx/dx - imp*(Vo(xx,yy-1)-abs(Vo(xx,yy-1)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    cnt4 = 1
-
-                    b(j) = b(j) + epl*((Vo(xx,yy)+abs(Vo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                if (matrix(yy ,xx - 1)%class /=p) then 
-
-                    k = cnt_rec(yy ,xx - 1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,xx-1)/dx/dx - imp*(Uo(xx-1,yy)-abs(Uo(xx-1,yy)))*0.5d0*(1d0/dx)
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-                    ax(cnt2) = ax(cnt2) - imp*(Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0/dx) &
-                        ! - cntgrad*imp*(Uo(xx,yy)+abs(Uo(xx,yy)))/2d0/tmpU*(Uo(xx,yy)-Uo(xx-1,yy))/dx   &
-                        + edif(yy,xx)*(-1d0)/dx/dx + (edif(yy,xx) - edif(yy,xx-1))*(1d0)/dx/dx
-                    b(j) = b(j) + epl*((Uo(xx,yy)+abs(Uo(xx,yy)))*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                k = cnt_rec(yy,xx)
-                ax(cnt2) = ax(cnt2) - 1./dt &
-                    - imp*cnt4*(Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0/dx) &
-                    ! - imp*cnt4*cntgrad*(Vo(xx,yy)+abs(Vo(xx,yy)))/2d0/tmpV*(Vo(xx,yy)-Vo(xx,yy-1))/dx   &
-                    - rx_imp*o2(yy,xx)%oxygen_use   &
-                    + cnt4*edif(yy,xx)*(-1d0)/dx/dx  + cnt4*(edif(yy,xx) - edif(yy-1,xx))*(1d0)/dx/dx
-                ai(cnt2) = k 
-                cnt2 = cnt2 + 1
-                cnt = cnt + 1
-
-                cnt3 = 0
-
-                if (matrix(yy,xx + 1)%class /=p) then 
-
-                    k = cnt_rec(yy,xx + 1) 
-                    ax(cnt2) = ax(cnt2) + edif(yy,xx+1)/dx/dx - imp*(Uo(xx+1,yy)+abs(Uo(xx+1,yy)))*0.5d0*(-1d0/dx)  &
-                        + (edif(yy,xx+1) - edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(-1d0/dx) &
-                        ! - cntgrad*imp*(Uo(xx,yy)-abs(Uo(xx,yy)))/2d0/tmpU*(Uo(xx+1,yy)-Uo(xx,yy))/dx   & 
-                        + edif(yy,xx)*(-1d0)/dx/dx 
-                    b(j) = b(j) + epl*((Uo(xx,yy)-abs(Uo(xx,yy)))*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-                if (matrix(yy+1,xx)%class /=p) then 
-
-                    k = cnt_rec(yy+1,xx) 
-                    ax(cnt2) = ax(cnt2) + edif(yy+1,xx)/dx/dx - imp*(Vo(xx,yy+1)+abs(Vo(xx,yy+1)))*0.5d0*(-1d0/dx)   &
-                        + (edif(yy+1,xx) - edif(yy,xx))*(-1d0)/dx/dx
-                    ai(cnt2) = k 
-                    cnt3 = cnt3 + 1
-                    cnt2 = cnt2 + 1
-                    cnt = cnt + 1
-
-                    ax(cnt2 - 1 - cnt3) = ax(cnt2 - 1 - cnt3) - imp*(Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(-1d0/dx) &
-                        ! - cntgrad*imp*(Vo(xx,yy)-abs(Vo(xx,yy)))/2d0/tmpV*(Vo(xx,yy+1)-Vo(xx,yy))/dx    & 
-                        + edif(yy,xx)*(-1d0)/dx/dx 
-                    b(j) = b(j) + epl*((Vo(xx,yy)-abs(Vo(xx,yy)))*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen)/2d0 )/dx
-                    
-                end if
-
-            end if
+        
+            xp = xx + 1
+            xg = xx - 1
+            yp = yy + 1
+            yg = yy - 1
+            
+            if (xp > n_col) xp = 1
+            if (xg < 1) xg = n_col
+                
+            if (matrix(yy,xp)%class /=p) then 
+                col = cnt_rec(yy,xp)
+                cnt2 = cnt2+ 1
+                ai_tmp(cnt2) = col 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xp)*(1d0 - 0d0)/dx/dx  &
+                    + (edif(yy,xp)-edif(yy,xx))*(0d0 - 1d0)/dx/dx 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(0d0-1d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uo(xp,yy)+abs(Uo(xp,yy)))*0.5d0*(0d0-1d0) )/dx 
+            endif 
+                
+            if (matrix(yy,xg)%class /=p) then 
+                col = cnt_rec(yy,xg)
+                cnt2 = cnt2+ 1
+                ai_tmp(cnt2) = col 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  &
+                    + (edif(yy,xx)-edif(yy,xg))*(1d0 - 0d0)/dx/dx 
+                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xg)*(1d0 - 0d0)/dx/dx  
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uo(xg,yy)-abs(Uo(xg,yy)))*0.5d0*(1d0-0d0) )/dx 
+            endif 
+                
+            if (matrix(yg,xx)%class /=p) then 
+                col = cnt_rec(yg,xx)
+                cnt2 = cnt2+ 1
+                ai_tmp(cnt2) = col 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  &
+                    + (edif(yy,xx)-edif(yg,xx))*(1d0 - 0d0)/dx/dx 
+                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yg,xx)*(1d0 - 0d0)/dx/dx  
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Vo(xx,yg)-abs(Vo(xx,yg)))*0.5d0*(1d0-0d0) )/dx 
+            endif 
+                
+            if (matrix(yp,xx)%class /=p) then 
+                col = cnt_rec(yp,xx)
+                cnt2 = cnt2+ 1
+                ai_tmp(cnt2) = col 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yp,xx)*(1d0 - 0d0)/dx/dx  &
+                    + (edif(yp,xx)-edif(yy,xx))*(0d0 - 1d0)/dx/dx 
+                
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(0d0-1d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Vo(xx,yp)+abs(Vo(xx,yp)))*0.5d0*(0d0-1d0) )/dx 
+            endif 
 
         END IF
-
-        ap(j + 1) =   ap(j) + cnt 
-
+        
+        ap(row+1) = ap(row) + cnt2 
+        ai_sort = 0
+        call heapsort2(cnt2,ai_tmp(1:cnt2),ai_sort(1:cnt2))
+        if (cnt2==1) ai_sort = 1
+		do ppp = 1, cnt2
+			ai(ap(row)+ppp) = ai_tmp(ppp) - 1  !! matrix index must start with 0 in UMFPACK
+			ax(ap(row)+ppp) = ax_tmp(ai_sort(ppp))
+		end do 
+        
     end do 
+
 end do
 
+b = - b
 
-ai = ai - 1
+! b = b/maxedif/oxup
+! ax = ax/maxedif/oxup
 
-b = b/maxedif/oxup
-ax = ax/maxedif/oxup
 
 mtx_chk = .FALSE.
 ! mtx_chk = .TRUE.
 
 if (mtx_chk) then
-
     open(500, file="chck_ap.txt", status = 'unknown')
     do j = 1, n+1
         write(500,*) ap(j)
     end do 
     close(500)
-
     open(500, file="chck_ai.txt", status = 'unknown')
     do j = 1, nnz
         write(500,*) ai(j)
     end do 
     close(500)
-
-    open(500, file="chck_ax.txt", status = 'unknown')
-    do j = 1, nnz
-        write(500,*) ax(j)
-    end do 
-    close(500)
-
-    open(500, file="chck_b.txt", status = 'unknown')
-    do j = 1, n
-        write(500,*) b(j)
-    end do 
-    close(500)
-
+    if (any(isnan(ax))) then 
+        open(500, file="chck_ax.txt", status = 'unknown')
+        do j = 1, nnz
+            write(500,*) ax(j)
+        end do 
+        close(500)
+    endif 
+    if (any(isnan(b))) then 
+        open(500, file="chck_b.txt", status = 'unknown')
+        do j = 1, n
+            write(500,*) b(j)
+        end do 
+        close(500)
+    endif 
 end if
 
 if (mtx_chk) stop
+
 !
 !  Set the default control parameters.
 !
@@ -1166,32 +697,45 @@ do yy = y_int  + 1, y_fin
             if (O2(yy,xx)%value_pre /=1) then 
                 O2(yy,xx)%oxygen = 0.0
             else 
-                print *, "================="
-                print *, "=negative oxygen=" , O2(yy,xx)%oxygen, xx,yy, O2(yy,xx)%value_pre
-                print *, "================="
+                if (chk_details) then 
+                    print *, "================="
+                    print *, "=negative oxygen=" , O2(yy,xx)%oxygen, xx,yy, O2(yy,xx)%value_pre
+                    print *, "================="
+                endif 
                 O2(yy,xx)%oxygen = 0.0
-                stop
+                flg_stop = .true. 
+                ! stop
             end if
         end if 
 
         if (O2(yy,xx)%oxygen > 1.) then
-            print *, "%%%%%%%%%%%%%%%%%%%%"
-            print *, "=oxygen production?=" , O2(yy,xx)%oxygen, xx,yy, O2(yy,xx)%value_pre
-            print *, "%%%%%%%%%%%%%%%%%%%%"
+            if (chk_details) then 
+                print *, "%%%%%%%%%%%%%%%%%%%%"
+                print *, "=oxygen production?=" , O2(yy,xx)%oxygen, xx,yy, O2(yy,xx)%value_pre
+                print *, "%%%%%%%%%%%%%%%%%%%%"
+            endif 
         end if 
 
         if (isnan(O2(yy,xx)%oxygen)) then
-            print *,"//////////////////"
-            print *,"//  NAN at",yy,xx,"///"
-            print *,"//////////////////"
+            if (chk_details) then
+                print *,"//////////////////"
+                print *,"//  NAN at",yy,xx,"///"
+                print *,"//////////////////"
+            endif
             if (matrix(yy,xx)%class == p) O2(yy,xx)%oxygen = 0.0
 
-            stop
+            ! stop
+            flg_stop = .true.
 
         end if
         
     end do
 end do 
+
+if (flg_stop) then 
+    print *, 'ERROR in o2 calc (NAN or NEGATIVE)'
+    stop
+endif 
 
 end do
 
@@ -1205,413 +749,129 @@ TotO2Adv = 0d0
 do2dt = 0d0
 resO2 = 0d0
 
-
 do yy = y_int  + 1, y_fin
 
     do xx = 1, n_col
 
-        TotOrgDecay_tmp =0d0 
-        TotResp_tmp = 0d0 
-        TotO2Dif_tmp = 0d0
-        TotAbio_tmp = 0d0
-        TotO2Adv_tmp = 0d0
-        do2dt_tmp = 0d0
-        resO2_tmp = 0d0
-
         if (matrix(yy,xx)%class == p) cycle
-
-        totOrgDecay = totorgdecay + o2(yy,xx)%oxygen_use*o2(yy,xx)%oxygen
-        do2dt = do2dt + (o2(yy,xx)%oxygen-tmpo2(yy,xx))/dt    
-
-        totOrgDecay_tmp = totorgdecay_tmp + o2(yy,xx)%oxygen_use*o2(yy,xx)%oxygen
-        do2dt_tmp = do2dt_tmp + (o2(yy,xx)%oxygen-tmpo2(yy,xx))/dt    
+        
+        do2dt      = do2dt       - (o2(yy,xx)%oxygen-tmpo2(yy,xx))/dt  
+        totorgdecay = totorgdecay - o2(yy,xx)%oxygen_use*o2(yy,xx)%oxygen
 
         if (yy == y_int  + 1) then
-
-            toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - oxup)/dx/dx &
-                + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen-oxup)/dx/dx
-            toto2adv = toto2adv + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-oxup) )/dx
-
-            toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - oxup)/dx/dx &
-                + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen-oxup)/dx/dx
-            toto2adv_tmp = toto2adv_tmp + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-oxup) )/dx
-
-            if (xx == 1) then
-
-
-                if (matrix(yy,xx+1)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xx+1)%oxygen - o2(yy,xx)%oxygen)/dx/dx   
-                    toto2adv = toto2adv + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen) )/dx 
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy,xx+1)%oxygen - o2(yy,xx)%oxygen)/dx/dx   
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen) )/dx 
-                end if
-
-                if (matrix(yy,n_col)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,N_col)%oxygen)/dx/dx &
-                        + (edif(yy,xx)-edif(yy,N_Col))*(o2(yy,xx)%oxygen - o2(yy,N_col)%oxygen)/dx/dx  
-                    toto2adv = toto2adv + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,N_col)%oxygen) )/dx 
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,N_col)%oxygen)/dx/dx &
-                        + (edif(yy,xx)-edif(yy,N_Col))*(o2(yy,xx)%oxygen - o2(yy,N_col)%oxygen)/dx/dx  
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,N_col)%oxygen) )/dx 
-
-                end if
-
-                if (matrix(yy+1,xx)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy+1,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx 
-                    toto2adv = toto2adv + ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen) )/dx 
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy+1,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx 
-                    toto2adv_tmp = toto2adv_tmp + ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen) )/dx 
-                end if
-
-                ! print*,xx,yy,do2dt_tmp,  toto2dif_tmp, toto2adv_tmp, totorgdecay_tmp&
-                    ! , do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp 
-                ! if (abs(do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp) > 1d0) stop
-
-            else if (xx == n_col) then
-
-                if (matrix(yy,1)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy,1)%oxygen - o2(yy,xx)%oxygen)/dx/dx 
-                    toto2adv = toto2adv + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,1)%oxygen-O2(yy,xx)%oxygen) )/dx 
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy,1)%oxygen - o2(yy,xx)%oxygen)/dx/dx 
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,1)%oxygen-O2(yy,xx)%oxygen) )/dx 
-
-                end if
-
-                if (matrix(yy,xx - 1)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,xx-1))*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen) )/dx  
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,xx-1))*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen) )/dx  
-
-                end if
-
-                if (matrix(yy+1,xx)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy+1,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx 
-                    toto2adv = toto2adv + ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy+1,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx 
-                    toto2adv_tmp = toto2adv_tmp + ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen) )/dx
-                end if
-
-                ! print*,xx,yy,do2dt_tmp,  toto2dif_tmp, toto2adv_tmp, totorgdecay_tmp&
-                    ! , do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp 
-                ! if (abs(do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp) > 1d0) stop
-
-            else 
-
-                if (matrix(yy,xx-1)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,xx-1))*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen) )/dx 
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,xx-1))*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen) )/dx 
-
-                end if
-
-                if (matrix(yy,xx + 1)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xx+1)%oxygen - o2(yy,xx)%oxygen)/dx/dx               
-                    toto2adv = toto2adv + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen) )/dx  
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy,xx+1)%oxygen - o2(yy,xx)%oxygen)/dx/dx               
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen) )/dx  
-                end if
-
-                if (matrix(yy+1,xx)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy+1,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx               
-                    toto2adv = toto2adv + ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen) )/dx  
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy+1,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx               
-                    toto2adv_tmp = toto2adv_tmp + ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen) )/dx  
-                end if
-
-                ! print*,xx,yy,do2dt_tmp,  toto2dif_tmp, toto2adv_tmp, totorgdecay_tmp&
-                    ! , do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp 
-                ! if (abs(do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp) > 1d0) stop
-
-            end if
+            
+            toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen  - oxup)/dx/dx &
+                + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen  - oxup)/dx/dx
+            
+            toto2adv = toto2adv - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen  - oxup) )/dx
+            
+            
+            xp = xx + 1
+            xg = xx - 1
+            yp = yy + 1
+            
+            if (xp > n_col) xp = 1
+            if (xg < 1) xg = n_col
+                
+            if (matrix(yy,xp)%class /=p) then 
+            
+                toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen)/dx/dx
+                
+                toto2adv = toto2adv - ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen) )/dx 
+            endif 
+                
+            if (matrix(yy,xg)%class /=p) then 
+            
+                toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xg)%oxygen - o2(yy,xx)%oxygen)/dx/dx  &
+                    + (edif(yy,xx)-edif(yy,xg))*(o2(yy,xx)%oxygen - o2(yy,xg)%oxygen)/dx/dx 
+                
+                toto2adv = toto2adv - ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yy,xg)%oxygen) )/dx  
+            endif 
+                
+            if (matrix(yp,xx)%class /=p) then 
+            
+                toto2dif = toto2dif + edif(yy,xx)*(o2(yp,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx  
+                
+                toto2adv = toto2adv - ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(o2(yp,xx)%oxygen-o2(yy,xx)%oxygen) )/dx 
+            endif 
 
         ELSE IF (yy == y_fin) THEN
-
-            if (xx == 1) then
-
-                if (matrix(yy - 1,xx )%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen) )/dx
-                end if
-
-                if (matrix(yy,xx + 1)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xx+1)%oxygen - o2(yy,xx)%oxygen)/dx/dx              
-                    toto2adv = toto2adv + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy,xx+1)%oxygen - o2(yy,xx)%oxygen)/dx/dx              
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen) )/dx
-                end if
-
-                if (matrix(yy,n_col)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,N_col)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,N_col))*(o2(yy,xx)%oxygen - o2(yy,N_col)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,N_col)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,N_col)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,N_col))*(o2(yy,xx)%oxygen - o2(yy,N_col)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,N_col)%oxygen) )/dx
-                end if
-
-                ! print*,xx,yy,do2dt_tmp,  toto2dif_tmp, toto2adv_tmp, totorgdecay_tmp&
-                    ! , do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp 
-                ! if (abs(do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp) > 1d0) stop
-
-            else if (xx == n_col) then
-
-                if (matrix(yy - 1,xx)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen) )/dx
-                end if
-
-                if (matrix(yy,1)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy,1)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv = toto2adv + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,1)%oxygen-O2(yy,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy,1)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,1)%oxygen-O2(yy,xx)%oxygen) )/dx
-                end if
-
-                if (matrix(yy,xx - 1)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,xx-1))*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,xx-1))*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen) )/dx
-                end if
-
-                ! print*,xx,yy,do2dt_tmp,  toto2dif_tmp, toto2adv_tmp, totorgdecay_tmp&
-                    ! , do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp 
-                ! if (abs(do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp) > 1d0) stop
-
-            else 
-
-                if (matrix(yy - 1,xx)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen) )/dx
-                end if
-
-                if (matrix(yy,xx - 1)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,xx-1))*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,xx-1))*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen) )/dx
-                end if
-
-                if (matrix(yy,xx + 1)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xx+1)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv = toto2adv + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy,xx+1)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen) )/dx
-                end if
-
-            end if 
-
-            ! print*,xx,yy,do2dt_tmp,  toto2dif_tmp, toto2adv_tmp, totorgdecay_tmp&
-                ! , do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp 
-            ! if (abs(do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp) > 1d0) stop
+        
+            xp = xx + 1
+            xg = xx - 1
+            yg = yy - 1
+            
+            if (xp > n_col) xp = 1
+            if (xg < 1) xg = n_col
+                
+            if (matrix(yy,xp)%class /=p) then 
+            
+                toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen)/dx/dx
+                
+                toto2adv = toto2adv - ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen) )/dx 
+            endif 
+                
+            if (matrix(yy,xg)%class /=p) then 
+            
+                toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xg)%oxygen - o2(yy,xx)%oxygen)/dx/dx  &
+                    + (edif(yy,xx)-edif(yy,xg))*(o2(yy,xx)%oxygen - o2(yy,xg)%oxygen)/dx/dx 
+                
+                toto2adv = toto2adv - ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yy,xg)%oxygen) )/dx  
+            endif 
+                
+            if (matrix(yg,xx)%class /=p) then 
+            
+                toto2dif = toto2dif + edif(yy,xx)*(o2(yg,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx  &
+                    + (edif(yy,xx)-edif(yg,xx))*(o2(yy,xx)%oxygen - o2(yg,xx)%oxygen)/dx/dx 
+                    
+                toto2adv = toto2adv - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yg,xx)%oxygen) )/dx  
+            endif 
 
         ELSE 
-
-            if (xx == 1) then
-
-                if (matrix(yy - 1,xx)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen) )/dx
-                end if
-
-                if (matrix(yy,xx+1)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xx+1)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv = toto2adv + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy,xx+1)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen) )/dx
-                end if
-
-                if (matrix(yy,n_col)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,N_col)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,N_col))*(o2(yy,xx)%oxygen - o2(yy,N_col)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,N_col)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,N_col)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,N_col))*(o2(yy,xx)%oxygen - o2(yy,N_col)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,N_col)%oxygen) )/dx
-                end if
-
-                if (matrix(yy + 1,xx)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy+1,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv = toto2adv + ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy+1,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv_tmp = toto2adv_tmp + ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen) )/dx
-                end if
-
-                ! print*,xx,yy,do2dt_tmp,  toto2dif_tmp, toto2adv_tmp, totorgdecay_tmp &
-                    ! , do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp 
-                ! if (abs(do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp) > 1d0) stop
-
-            else if (xx == n_col) then
-
-                if (matrix(yy - 1,xx)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen) )/dx
-                end if
-
-                if (matrix(yy,  1)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy,1)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv = toto2adv + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,1)%oxygen-O2(yy,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy,1)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,1)%oxygen-O2(yy,xx)%oxygen) )/dx
-                end if
-
-                if (matrix(yy, xx - 1)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,xx-1))*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Uo(xx,yy)+abs(Uo(xx,yy)))*05d0*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,xx-1))*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)+abs(Uo(xx,yy)))*05d0*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen) )/dx
-                end if
-
-                if (matrix(yy+1,xx)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy+1,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv = toto2adv + ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy+1,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv_tmp = toto2adv_tmp + ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen) )/dx
-                end if
-
-                ! print*,xx,yy,do2dt_tmp,  toto2dif_tmp, toto2adv_tmp, totorgdecay_tmp&
-                    ! , do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp 
-                ! if (abs(do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp) > 1d0) stop
-
-            else 
-
-                if (matrix(yy - 1,xx)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen - o2(yy-1,xx)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy-1,xx)%oxygen) )/dx
-                end if
-
-                if (matrix(yy ,xx - 1)%class /=p) then 
-
-                    toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,xx-1))*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx                
-                    toto2adv = toto2adv + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp - edif(yy,xx)*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx  & 
-                        + (edif(yy,xx)-edif(yy,xx-1))*(o2(yy,xx)%oxygen - o2(yy,xx-1)%oxygen)/dx/dx                
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx)%oxygen-O2(yy,xx-1)%oxygen) )/dx
-                end if
-
-                if (matrix(yy,xx + 1)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xx+1)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv = toto2adv + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy,xx+1)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv_tmp = toto2adv_tmp + ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(O2(yy,xx+1)%oxygen-O2(yy,xx)%oxygen) )/dx
-                end if
-
-                if (matrix(yy+1,xx)%class /=p) then 
-
-                    toto2dif = toto2dif + edif(yy,xx)*(o2(yy+1,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv = toto2adv + ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen) )/dx
-
-                    toto2dif_tmp = toto2dif_tmp + edif(yy,xx)*(o2(yy+1,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx                  
-                    toto2adv_tmp = toto2adv_tmp + ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(O2(yy+1,xx)%oxygen-O2(yy,xx)%oxygen) )/dx
-                end if
-
-                ! print*,xx,yy,do2dt_tmp,  toto2dif_tmp, toto2adv_tmp, totorgdecay_tmp &
-                    ! , do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp 
-                ! if (abs(do2dt_tmp - toto2dif_tmp + toto2adv_tmp + totorgdecay_tmp) > 1d0) stop
-
-            end if
+        
+            xp = xx + 1
+            xg = xx - 1
+            yp = yy + 1
+            yg = yy - 1
+            
+            if (xp > n_col) xp = 1
+            if (xg < 1) xg = n_col
+                
+            if (matrix(yy,xp)%class /=p) then 
+            
+                toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen)/dx/dx
+                
+                toto2adv = toto2adv - ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen) )/dx 
+            endif 
+                
+            if (matrix(yy,xg)%class /=p) then 
+            
+                toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xg)%oxygen - o2(yy,xx)%oxygen)/dx/dx  &
+                    + (edif(yy,xx)-edif(yy,xg))*(o2(yy,xx)%oxygen - o2(yy,xg)%oxygen)/dx/dx 
+                
+                toto2adv = toto2adv - ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yy,xg)%oxygen) )/dx  
+            endif 
+                
+            if (matrix(yg,xx)%class /=p) then 
+            
+                toto2dif = toto2dif + edif(yy,xx)*(o2(yg,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx  &
+                    + (edif(yy,xx)-edif(yg,xx))*(o2(yy,xx)%oxygen - o2(yg,xx)%oxygen)/dx/dx 
+                    
+                toto2adv = toto2adv - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yg,xx)%oxygen) )/dx  
+            endif 
+                
+            if (matrix(yp,xx)%class /=p) then 
+            
+                toto2dif = toto2dif + edif(yy,xx)*(o2(yp,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx  
+                
+                toto2adv = toto2adv - ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(o2(yp,xx)%oxygen-o2(yy,xx)%oxygen) )/dx 
+            endif 
 
         END IF
-
     end do 
 
 end do
 
-! stop  !!!
 
 if (resp_ON) then 
     do i = 1, N_ind
@@ -1631,13 +891,42 @@ TotOrgdecay = Totorgdecay*iox*1e-3*width_3d*(pixelSize)*(PixelSize)
 Totresp = Totresp*iox*1e-3*width_3d*(pixelSize)*(PixelSize)
 do2dt = do2dt*iox*1e-3*width_3d*(pixelSize)*(PixelSize)
 totAbio = totOrgDecay - Totresp 
-reso2 = do2dt - toto2dif + toto2adv + totorgdecay 
+reso2 = do2dt + toto2dif + toto2adv + totorgdecay 
+
+! stop  !!!
 
 write(File_flux,*) Time*Timescale, TotO2dif,TotO2Adv, TotAbio, TotResp, TotOrgDecay, do2dt, reso2
 print '(A19,7A11)','','DIFFUSION','ADVECTION','DECAY','RESP','ORGTOT','dO2/dT','RESIDUAL'
 print '(A19,7E11.3)', 'O2 fluxes: ', TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt, reso2     
 print '(A23)','[mol cm-2 yr-1]'
 print *
+
+if (chk_details) then 
+    if (abs(reso2) > minval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt/)))) then 
+        print *, 'too large error in flx: '
+        stop
+    endif 
+endif 
+
+! if (abs(reso2)/minval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt/)))>1e-2  &
+    ! .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-14   &
+    ! ) then 
+if (abs(TotO2Adv) > 1d-14) then 
+    if (abs(reso2)/abs(TotO2Adv) >1d-2 &
+        .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-14   &
+        ) then 
+        print *, 'too large error in flx wrt adv: ',abs(reso2)/abs(TotO2Adv)
+        pause
+    endif 
+endif 
+if (abs(TotO2dif) > 1d-14) then 
+    if (abs(reso2)/abs(TotO2dif) >1d-2 &
+        .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-14   &
+        ) then 
+        print *, 'too large error in flx wrt dif: ',abs(reso2)/abs(TotO2dif)
+        pause
+    endif 
+endif 
 
 end subroutine oxygen_profile
 
@@ -1661,5 +950,66 @@ endif
 end function merge2
 
 ! *************************
+! ====================================================
+subroutine heapsort2(n,array,turn)
+!!!  from http://slpr.sakura.ne.jp/qp/sortf90/
+implicit none
+integer(kind=4),intent(in)::n
+integer(kind=4),intent(out)::turn(1:n)
+integer(kind=4),intent(inout)::array(1:n)
+
+integer(kind=4)::i,k,j,l,m
+integer(kind=4)::t
+
+if(n.le.0)then
+    write(6,*)"Error, at heapsort"; stop
+endif
+if(n.eq.1)return
+
+do i=1,N
+    turn(i)=i
+enddo
+
+l=n/2+1
+k=n
+do while(k.ne.1)
+    if(l.gt.1)then
+        l=l-1
+        t=array(l)
+        m=turn(l)
+    else
+        t=array(k)
+        m=turn(k)
+        array(k)=array(1)
+        turn(k)=turn(1)
+        k=k-1
+        if(k.eq.1) then
+            array(1)=t
+            turn(1)=m
+            exit
+        endif
+    endif
+    i=l
+    j=l+l
+    do while(j.le.k)
+        if(j.lt.k)then
+            if(array(j).lt.array(j+1))j=j+1
+        endif
+        if (t.lt.array(j))then
+            array(i)=array(j)
+            turn(i)=turn(j)
+            i=j
+            j=j+j
+        else
+            j=k+1
+        endif
+    enddo
+    array(i)=t
+    turn(i)=m
+enddo
+
+return
+end subroutine heapsort2
+! =====================================================
 
 end module

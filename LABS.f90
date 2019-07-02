@@ -804,8 +804,8 @@
    allocate (O2(N_row,n_col))
    allocate (matrix_chk(N_row,n_col))
    allocate (Dir_rec(Day,N_IND))
-   allocate (Ub(2,N_ind), Vb(2,N_ind)) !  in flow subroutines, coodinate is listed in order of x, y
-   allocate (flow_loc(2,N_ind)) !  in flow subroutines, coodinate is listed in order of x, y
+   allocate (Ub(2,N_ind), Vb(2,N_ind)) !  intesnsity of flows imposed around head and tail of organisms
+   allocate (flow_loc(2,N_ind)) !  coodinate of flows imposed around head and tail of organisms
    nx_flow = n_col*flw_rsltn
    ny_flow = n_row*flw_rsltn
    allocate (Ug(nx_flow+1,ny_flow+2),Vg(nx_flow,ny_flow+2+1), Pg(nx_flow,ny_flow+2), Dg(nx_flow,ny_flow+2)) 

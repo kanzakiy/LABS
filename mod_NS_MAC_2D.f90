@@ -39,7 +39,7 @@ logical :: choice_done
 
 real(kind=8)  :: rdm(5)
 real(kind=8)  :: Ptop = 1d1  ! in g/cm/s/s (*** note: Pa = 10 g/cm/s/s and 1 atm = 1e5 Pa, i.e., P = 1 (g/cm/s/s) corresponds 0.1 Pa and 1 uatm )
-real(kind=8)  :: Pbot = 1d2
+real(kind=8)  :: Pbot = 1d0
 real(kind=8)  :: VelC          ! in cm/s
 real(kind=8)  :: new = 0.015d0 ! viscosity in g/cm/s
 real(kind=8)  :: delh   ! cm/pixel 
@@ -92,8 +92,9 @@ logical :: rec_binary = .false.
 ! logical :: rec_binary = .true.
 logical :: chk_particles = .true.
 logical :: flg_stop = .false.
+logical :: show_display_details = .true.
 
-character*21 numtemp, cat_tmp
+character*21 numtemp, cat_tmp, adv_chr, flow_chr, loc_chr
 integer(kind=4) xxx,yyy, x_tmp, y_tmp
 real(kind=8) :: perm_u, perm_d
 !---------------------------
@@ -142,7 +143,6 @@ else
     const_bot = .false.
     const_top = .false.
     nstep = 10
-    Pbot = 1d2
     cat_tmp = 'o2'
 endif
 
@@ -372,7 +372,7 @@ if (.not.flow_dir_x) then
         end do 
     enddo
     
-    print *, cnt2
+    ! print *, cnt2
 
 ! in case flow direction is x
 else if (flow_dir_x) then 
@@ -711,7 +711,6 @@ Rc = 0.0d0
 ! start calculation 
 step = 0
 do while (step < nstep)
-	if (show_display) print '(A,I3,A)','        Flow time-step: ',step,' ---------------------------'
 	! calculate u,v from previous iteration  
 	do xx = 1, nx
 		do yy = 1, ny + 2
@@ -731,6 +730,13 @@ do while (step < nstep)
 		end do
 	end do 
 	! u, v boundary
+    if (show_display_details .and. step == 0 .and. (.not.calc_perm)) then 
+        print '(A8,A)', '','Boundary conditions'
+        print '(A8,A)', '', 'p     =   particle               w     =   water'
+        print '(A8,A)', '', 'U     =   upper boundary         L     =   lower boundary'
+        print '(A8,A)', '', 'Arrow =   imposed water flow     ?     =   ?????'
+        print *
+    endif 
 	do xx = 1, nx
 		do yy = 1, ny+2
             xp = xx + 1
@@ -743,6 +749,10 @@ do while (step < nstep)
             if (yg == 0) yg = yy
 			
 			if (Tp(xx,yy) == 900) then ! const flow in any direction
+                ! print *, xx, yy
+                ! print *, flow_loc
+                ! print *, Ub
+                ! print *, Vb
 				ppp = 0
                 if (flw_rsltn==1) then 
                     xxx = xx
@@ -753,7 +763,12 @@ do while (step < nstep)
                 endif 
 				do pp = 1,2
 					if ((Vb(pp,matrix(yyy,xxx)%class)==0).and.(Ub(pp,matrix(yyy,xxx)%class)==0)) cycle
-					ppp = pp
+					if (flow_loc(pp, matrix(yyy,xxx)%class )%X == xxx   &
+                        .and. flow_loc(pp, matrix(yyy,xxx)%class )%Y == yyy) then
+                        ppp = pp
+                    endif 
+                    ! print *, '----', pp, Vb(pp,matrix(yyy,xxx)%class), Ub(pp,matrix(yyy,xxx)%class), ppp
+                    ! print *, 'xxxx', flow_loc(pp, matrix(yyy,xxx)%class ) 
 				end do 
 				if (ppp == 0) then 
                     print *, time,'error to set boundary 900',xx,yy
@@ -764,6 +779,77 @@ do while (step < nstep)
                 if (B2(xg,yy) == 0) Um(xg+1,yy) = Ub(ppp,matrix(yyy,xxx)%class)*VelC
                 if (B2(xx,yp) == 0) Vm(xx,yp) = Vb(ppp,matrix(yyy,xxx)%class)*VelC
                 if (B2(xx,yg) == 0) Vm(xx,yg+1) = Vb(ppp,matrix(yyy,xxx)%class)*VelC
+                
+                if (Ub(ppp,matrix(yyy,xxx)%class) > 0d0 .and. Vb(ppp,matrix(yyy,xxx)%class) > 0d0) then 
+                    flow_chr = '\v'
+                elseif (Ub(ppp,matrix(yyy,xxx)%class) < 0d0 .and. Vb(ppp,matrix(yyy,xxx)%class) < 0d0) then 
+                    flow_chr = '^\'
+                elseif (Ub(ppp,matrix(yyy,xxx)%class) < 0d0 .and. Vb(ppp,matrix(yyy,xxx)%class) > 0d0) then 
+                    flow_chr = 'v/'
+                elseif (Ub(ppp,matrix(yyy,xxx)%class) > 0d0 .and. Vb(ppp,matrix(yyy,xxx)%class) < 0d0) then 
+                    flow_chr = '/^'
+                elseif (Ub(ppp,matrix(yyy,xxx)%class) > 0d0 .and. Vb(ppp,matrix(yyy,xxx)%class) == 0d0) then 
+                    flow_chr = '->'
+                elseif (Ub(ppp,matrix(yyy,xxx)%class) < 0d0 .and. Vb(ppp,matrix(yyy,xxx)%class) == 0d0) then 
+                    flow_chr = '<-'
+                elseif (Ub(ppp,matrix(yyy,xxx)%class) == 0d0 .and. Vb(ppp,matrix(yyy,xxx)%class) > 0d0) then 
+                    flow_chr = 'v'
+                elseif (Ub(ppp,matrix(yyy,xxx)%class) == 0d0 .and. Vb(ppp,matrix(yyy,xxx)%class) < 0d0) then 
+                    flow_chr = '^'
+                else
+                    flow_chr = 'F?'
+                endif 
+                
+                if (ppp == 1) loc_chr = 'head'
+                if (ppp == 2) loc_chr = 'tail'
+                
+                if (show_display_details .and. step == 0 .and. (.not.calc_perm)) then 
+                    print '(A8,A,I0,A,A)', '','Org # = ',matrix(yyy,xxx)%class,' around ',trim(adjustl(loc_chr))
+                    ! print *, ppp, matrix(yyy,xxx)%class
+                    print *
+                    if (trim(adjustl(loc_chr)) == 'tail' .and. ppp /=2) pause
+                    if (trim(adjustl(loc_chr)) == 'head' .and. ppp /=1) pause
+                    do y_tmp = 1,21
+                        yyy = yy + (y_tmp - 11) 
+                        if (yyy > ny+2) yyy = ny+2
+                        if (yyy < 1) yyy = 1
+                        if (y_tmp==1 ) then 
+                            do x_tmp = 1,21
+                                xxx = xx + (x_tmp - 11)
+                                if (xxx > nx) xxx = xxx - nx
+                                if (xxx < 1) xxx = xxx + nx
+                                adv_chr = 'no'
+                                if (x_tmp==21) adv_chr = 'yes'
+                                if (x_tmp==1) write (*,fmt='(a11)', advance=trim(adjustl(adv_chr))) '' 
+                                write (*,fmt='(I3)', advance=trim(adjustl(adv_chr))) xxx 
+                            enddo
+                        endif 
+                        do x_tmp = 1,21
+                            xxx = xx + (x_tmp - 11)
+                            if (xxx > nx) xxx = xxx - nx
+                            if (xxx < 1) xxx = xxx + nx
+                            adv_chr = 'no'
+                            if (x_tmp==21) adv_chr = 'yes'
+                            if (x_tmp==1) write (*,fmt='(i11)', advance=trim(adjustl(adv_chr))) yyy
+                            if (Tp(xxx,yyy) == 900) then 
+                                ! write (*,fmt='(a3)', advance=trim(adjustl(adv_chr))) ' F '
+                                write (*,fmt='(a3)', advance=trim(adjustl(adv_chr))) trim(adjustl(flow_chr))
+                            elseif (Tp(xxx,yyy) == 0) then 
+                                write (*,fmt='(a3)', advance=trim(adjustl(adv_chr))) ' w '
+                            elseif (Tp(xxx,yyy) == 200) then 
+                                write (*,fmt='(a3)', advance=trim(adjustl(adv_chr))) ' L '
+                            elseif (Tp(xxx,yyy) == 300) then 
+                                write (*,fmt='(a3)', advance=trim(adjustl(adv_chr))) ' U '
+                            elseif (Tp(xxx,yyy) >= 100) then 
+                                write (*,fmt='(a3)', advance=trim(adjustl(adv_chr))) ' p '
+                            else 
+                                write (*,fmt='(a3)', advance=trim(adjustl(adv_chr))) ' ? '
+                            endif 
+                        enddo 
+                    enddo 
+                    print *
+                endif 
+                loc_chr = ' '
 			end if 
             
 			if (B2(xx,yy)==100) then 
@@ -1213,10 +1299,9 @@ do while (step < nstep)
 			end if 
 		end do
 	end do
-	! end calculation 1 step
-	step = step + 1
 	! show results on display
 	if (show_display) then 
+        print '(A,I3,A)','        Flow time-step: ',step,' ---------------------------'
         print '(5A11)', '','U[cm/s]','V[cm/s]','P[x0.1Pa]','D[/s]'
 		print '(A11,4E11.3)', 'MAX',maxval(Um(:,2:ny+1)),maxval(Vm(:,2:ny+1)),maxval(Pc(:,2:ny+1)),maxval(Dc(:,2:ny+1))
 		print '(A11,4E11.3)', 'MIN',minval(Um(:,2:ny+1)),minval(Vm(:,2:ny+1)),minval(Pc(:,2:ny+1)),minval(Dc(:,2:ny+1))
@@ -1237,6 +1322,8 @@ do while (step < nstep)
             print *
         endif 
     endif 
+	! end calculation 1 step
+	step = step + 1
 end do
 Ug = Um
 Vg = Vm 
