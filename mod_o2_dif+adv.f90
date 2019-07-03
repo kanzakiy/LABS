@@ -247,9 +247,18 @@ logical :: chk_details = .false.
 logical :: flg_stop = .false.
 integer(kind=4):: col,row, xp,xg, yp,yg, ppp,ai_tmp(5),ai_sort(5)
 real(kind=8) :: ax_tmp(5)
+! logical :: calc_form = .true.
+real(kind=8) :: form_btm, form_top, ec_top, ec_btm
+real(kind=8) :: ep_top = 200d0, ep_btm = 100d0
+real(kind=8) :: sigma = 4d-2 ! ohm-1 cm-1; electrical conductivity of seawater, cf., Tyler et al. 2007
+real(kind=8) :: elecp(n_row,n_col)
+Character*21 numtemp
+real(kind=8) :: txtimg(N_Col)
 oxup = pal
 
-if (time==0) print*,oxup,pal
+! if (time==0) print*,oxup,pal
+
+write(numtemp,'(i10.1)') Time
 
 if (allocated(tmpo2)) deallocate(tmpo2) 
 allocate(tmpo2(N_row,N_col))
@@ -385,6 +394,8 @@ if (divide) then
         print *, totstep, org(i)%width, ceiling(sqrt(maxval(Vb(:,i))**2+maxval(Vb(:,i))**2))
     end do
 end if
+
+if (.not. calc_form) then 
 
 do step = 1, totstep
 
@@ -926,6 +937,266 @@ if (abs(TotO2dif) > 1d-14) then
         print *, 'too large error in flx wrt dif: ',abs(reso2)/abs(TotO2dif)
         pause
     endif 
+endif 
+
+endif 
+
+if (calc_form) then 
+    form_top  = 0d0
+    form_btm  = 0d0
+    
+    edif = sigma
+
+    ai = 0
+    ap = 0
+    ax = 0.
+    b = 0.
+
+    dx = PixelSIze  ! cm
+
+    ap(1) = 0
+    do yy = y_int  + 1, y_fin
+
+        do xx = 1, n_col
+
+            if (matrix(yy,xx)%class == p) cycle
+            
+            ai_tmp = 0
+            ax_tmp = 0d0
+            
+            row = cnt_rec(yy,xx)
+            cnt2 = 1
+            ai_tmp( 1 ) = row 
+
+            if (yy == y_int  + 1) then
+            
+                ax_tmp( 1 ) = ax_tmp( 1 ) - edif(yy,xx)*(1.0d0  - 0d0)/dx/dx 
+                b(row)      = b(row)       - edif(yy,xx)*(0d0 - ep_top)/dx/dx 
+                
+                xp = xx + 1
+                xg = xx - 1
+                yp = yy + 1
+                
+                if (xp > n_col) xp = 1
+                if (xg < 1) xg = n_col
+                    
+                if (matrix(yy,xp)%class /=p) then 
+                    col = cnt_rec(yy,xp)
+                    cnt2 = cnt2+ 1
+                    ai_tmp(cnt2) = col 
+                    
+                    ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
+                    ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xp)*(1d0 - 0d0)/dx/dx  
+                endif 
+                    
+                if (matrix(yy,xg)%class /=p) then 
+                    col = cnt_rec(yy,xg)
+                    cnt2 = cnt2+ 1
+                    ai_tmp(cnt2) = col 
+                    
+                    ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
+                    ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xg)*(1d0 - 0d0)/dx/dx  
+                endif 
+                    
+                if (matrix(yp,xx)%class /=p) then 
+                    col = cnt_rec(yp,xx)
+                    cnt2 = cnt2+ 1
+                    ai_tmp(cnt2) = col 
+                    
+                    ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
+                    ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yp,xx)*(1d0 - 0d0)/dx/dx  
+                endif 
+
+            ELSE IF (yy == y_fin) THEN
+            
+                ax_tmp( 1 ) = ax_tmp( 1 ) - edif(yy,xx)*(1.0d0  - 0d0)/dx/dx 
+                b(row)      = b(row)       - edif(yy,xx)*(0d0 - ep_btm)/dx/dx 
+            
+                xp = xx + 1
+                xg = xx - 1
+                yg = yy - 1
+                
+                if (xp > n_col) xp = 1
+                if (xg < 1) xg = n_col
+                    
+                if (matrix(yy,xp)%class /=p) then 
+                    col = cnt_rec(yy,xp)
+                    cnt2 = cnt2+ 1
+                    ai_tmp(cnt2) = col 
+                    
+                    ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
+                    ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xp)*(1d0 - 0d0)/dx/dx  
+                endif 
+                    
+                if (matrix(yy,xg)%class /=p) then 
+                    col = cnt_rec(yy,xg)
+                    cnt2 = cnt2+ 1
+                    ai_tmp(cnt2) = col 
+                    
+                    ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx 
+                    ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xg)*(1d0 - 0d0)/dx/dx  
+                endif 
+                    
+                if (matrix(yg,xx)%class /=p) then 
+                    col = cnt_rec(yg,xx)
+                    cnt2 = cnt2+ 1
+                    ai_tmp(cnt2) = col 
+                    
+                    ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
+                    ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yg,xx)*(1d0 - 0d0)/dx/dx  
+                endif 
+
+            ELSE 
+            
+                xp = xx + 1
+                xg = xx - 1
+                yp = yy + 1
+                yg = yy - 1
+                
+                if (xp > n_col) xp = 1
+                if (xg < 1) xg = n_col
+                    
+                if (matrix(yy,xp)%class /=p) then 
+                    col = cnt_rec(yy,xp)
+                    cnt2 = cnt2+ 1
+                    ai_tmp(cnt2) = col 
+                    
+                    ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
+                    ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xp)*(1d0 - 0d0)/dx/dx  
+                endif 
+                    
+                if (matrix(yy,xg)%class /=p) then 
+                    col = cnt_rec(yy,xg)
+                    cnt2 = cnt2+ 1
+                    ai_tmp(cnt2) = col 
+                    
+                    ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx 
+                    ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xg)*(1d0 - 0d0)/dx/dx  
+                endif 
+                    
+                if (matrix(yg,xx)%class /=p) then 
+                    col = cnt_rec(yg,xx)
+                    cnt2 = cnt2+ 1
+                    ai_tmp(cnt2) = col 
+                    
+                    ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
+                    ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yg,xx)*(1d0 - 0d0)/dx/dx  
+                endif 
+                    
+                if (matrix(yp,xx)%class /=p) then 
+                    col = cnt_rec(yp,xx)
+                    cnt2 = cnt2+ 1
+                    ai_tmp(cnt2) = col 
+                    
+                    ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
+                    ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yp,xx)*(1d0 - 0d0)/dx/dx  
+                endif 
+
+            END IF
+            
+            ap(row+1) = ap(row) + cnt2 
+            ai_sort = 0
+            call heapsort2(cnt2,ai_tmp(1:cnt2),ai_sort(1:cnt2))
+            if (cnt2==1) ai_sort = 1
+            do ppp = 1, cnt2
+                ai(ap(row)+ppp) = ai_tmp(ppp) - 1  !! matrix index must start with 0 in UMFPACK
+                ax(ap(row)+ppp) = ax_tmp(ai_sort(ppp))
+            end do 
+            
+        end do 
+
+    end do
+
+    b = - b
+    
+    !
+    !  Set the default control parameters.
+    !
+    call umf4def( control )
+    !
+    !  From the matrix data, create the symbolic factorization information.
+    !
+    call umf4sym ( n, n, ap, ai, ax, symbolic, control, info )
+
+    if ( info(1) < 0.0D+00 ) then
+        write ( *, * ) ''
+        write ( *, *) 'UMFPACK_SIMPLE - Fatal error!'
+        write ( *, * ) '  UMF4SYM returns INFO(1) = ', info(1)
+        stop 1
+    end if
+    !
+    !  From the symbolic factorization information, carry out the numeric factorization.
+    !
+    call umf4num ( ap, ai, ax, symbolic, numeric, control, info )
+
+    if ( info(1) < 0.0D+00 ) then
+        write ( *, '(a)' ) ''
+        write ( *, '(a)' ) 'UMFPACK_SIMPLE - Fatal error!'
+        write ( *, '(a,g14.6)' ) '  UMF4NUM returns INFO(1) = ', info(1)
+        stop 1
+    end if
+    !
+    !  Free the memory associated with the symbolic factorization.
+    !
+    call umf4fsym ( symbolic )
+    !
+    !  Solve the linear system.
+    !
+    sys = 0
+    call umf4sol ( sys, x, b, numeric, control, info )
+
+    if ( info(1) < 0.0D+00 ) then
+        write ( *, '(a)' ) ''
+        write ( *, '(a)' ) 'UMFPACK_SIMPLE - Fatal error!'
+        write ( *, '(a,g14.6)' ) '  UMF4SOL returns INFO(1) = ', info(1)
+        stop 1
+    end if
+    !
+    !  Free the memory associated with the numeric factorization.
+    !
+    call umf4fnum ( numeric )
+
+    elecp = 0d0
+    elecp(1:y_int,:) = ep_top
+    do yy = y_int  + 1, y_fin
+        do xx = 1, n_col
+            if (matrix(yy,xx)%class == p ) cycle
+
+            j = cnt_rec(yy,xx)
+            elecp(yy,xx) = x(j)
+        enddo 
+    enddo
+    ec_top = 0d0 
+    ec_btm = 0d0
+    do xx = 1, n_col
+        yy = y_int  + 1
+        if (matrix(yy,xx)%class /= p) ec_top = ec_top - sigma*(elecp(yy,xx)-ep_top)/dx 
+        yy = y_fin
+        if (matrix(yy,xx)%class /= p) ec_btm = ec_btm - sigma*(ep_btm-elecp(yy,xx))/dx 
+    enddo 
+    
+    form_top = (ep_top - ep_btm)/(n_row*dx)/(ec_top*dx*width_3d/n_col/dx/width_3d)*sigma
+    form_btm = (ep_top - ep_btm)/(n_row*dx)/(ec_btm*dx*width_3d/n_col/dx/width_3d)*sigma
+    
+    print '(A)','        *****************************'
+    print '(A15,2A11)','','UP','DOWN'
+    print '(A8,A7,2E11.3)', '','F [-]: ',form_top,form_btm
+    print '(A)','        *****************************'
+    print *
+    
+    open(unit = File_txtImg, File = trim(adjustl(today))//'/geo/ep'          &
+        //trim(adjustl(numtemp))//'.txt', status = 'unknown')
+    do yy = 1, N_row
+        txtimg = 0 
+        DO xx = 1, N_col
+            txtimg(xx) = elecp(yy,xx)
+        END Do
+        write(File_txtImg, *) (txtimg(xx), xx = 1, n_col)
+    END Do
+    Close(File_txtimg)
+    
+    write(File_Form,*) Time*Timescale, form_top,form_btm
+    
 endif 
 
 end subroutine oxygen_profile

@@ -85,6 +85,8 @@
       '/Core_A.txt', status = 'unknown')
    OPEN(unit = File_Perm, file = trim(adjustl(Today))//'/geo'// &
       '/permeability.OUT', status = 'unknown')
+   OPEN(unit = File_Form, file = trim(adjustl(Today))//'/geo'// &
+      '/formationfactor.OUT', status = 'unknown')
    OPEN(unit = File_Pop, file = trim(adjustl(Today))//'/eco'//  &
       '/Pop.OUT', status = 'unknown')
    OPEN(unit = File_sedrate, file = trim(adjustl(Today))//  &
@@ -311,7 +313,7 @@
    
    !!  +++++++++++++++ working only when oxygen is switched ------------
       if (oxygen_ON) then
-   
+         calc_form = .false. 
          ! call O2pre_setup()
          
          call OrgDecay()
@@ -401,7 +403,12 @@
                   call flow_calc() 
                   call output_flow()
                   calc_perm = .false. 
-               endif                   
+               endif        
+               if (Form_Rec) then 
+                  calc_form = .true. 
+                  call oxygen_profile()
+                  calc_form = .false. 
+               endif                     
                Savetime = savetime + 1       
             End If
             If ((Time - TimeNEW) .GT. 10*Day) then  ! continue output for 10 days
@@ -425,6 +432,11 @@
                call flow_calc() 
                call output_flow()
                calc_perm = .false. 
+            endif      
+            if (Form_Rec) then 
+               calc_form = .true. 
+               call oxygen_profile()
+               calc_form = .false. 
             endif      
           
             Savetime = savetime + 1       
@@ -543,6 +555,7 @@
    Close(File_Core_L)
    Close(File_Core_A)
    Close(File_Perm)
+   Close(File_Form)
    Close(File_Pop)
    Close(File_sedrate)
    Close(File_profile_st)
@@ -617,6 +630,7 @@
    READ(File_Parameters,*) Long_Run           ! if yes, recording is less frequent 
    READ(File_Parameters,*) O2lim_on           ! limiting depths of animals with some threshold o2 conc. (non working right now)
    READ(File_Parameters,*) Perm_Rec           ! calculating and recording permeability change 
+   READ(File_Parameters,*) Form_Rec           ! calculating and recording formation factor change 
    CLOSE(File_Parameters)
        
    ! input user defined variables .. some constants in eLABS 
