@@ -380,7 +380,9 @@
       endif
 		 
        ! check if time to output data
-      If (Any(Time .eq. Time_Output)) then
+      If (Any(Time .eq. Time_Output)   &
+         .or. Time == 1   &
+         ) then
          TimeToOutput = .true.
          ! write(*,*) time      !! Added to create movies -------YK 5/22/2017
          ! call OutputData()    !! Added to create movies -------YK 5/22/2017
@@ -647,6 +649,7 @@
    READ(File_Parameters,*) shearfact          ! shear velocity factor relative to reference value  
    READ(File_Parameters,*) corg_0             ! om conc in wt% of raining sediment particles
    READ(File_Parameters,*) flw_rsltn          ! a factor to increase the resolution of flow calculation 
+   READ(File_Parameters,*) pump_fact          ! a factor to increase the imposed flow rate 
    CLOSE(File_Parameters)
 
    ! preliminary reading of organism data to obtain scaling parameters
@@ -3979,13 +3982,13 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
             select case(Org(i)%Orientation)
                case(0)
-                  Vb(1,i) = Vb(1,i) + 2.5
+                  Vb(1,i) = Vb(1,i) + 2.5*pump_fact
                case(180)
-                  Vb(1,i) = Vb(1,i) - 2.5
+                  Vb(1,i) = Vb(1,i) - 2.5*pump_fact
                case(90)
-                  Ub(1,i) = Ub(1,i) - 2.5
+                  Ub(1,i) = Ub(1,i) - 2.5*pump_fact
                case(270)
-                  Ub(1,i) = Ub(1,i) + 2.5
+                  Ub(1,i) = Ub(1,i) + 2.5*pump_fact
                case default
                   print *, 'error in setting flow const---ingest',Org(i)%Orientation
             end select
@@ -4080,13 +4083,13 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
 
                select case(Dir_rec(org(i)%length,i))
                   case(0)
-                     Vb(2,i) = Vb(2,i) + 2.5
+                     Vb(2,i) = Vb(2,i) + 2.5*pump_fact
                   case(180)
-                     Vb(2,i) = Vb(2,i) - 2.5
+                     Vb(2,i) = Vb(2,i) - 2.5*pump_fact
                   case(90)
-                     Ub(2,i) = Ub(2,i) - 2.5
+                     Ub(2,i) = Ub(2,i) - 2.5*pump_fact
                   case(270)
-                     Ub(2,i) = Ub(2,i) + 2.5
+                     Ub(2,i) = Ub(2,i) + 2.5*pump_fact
                   case default
                      print *, 'error in setting flow const---egest',Dir_rec(org(i)%length,i)
                end select

@@ -33,7 +33,7 @@
    integer(kind=4), Save :: Time, Day, Year
    !  added 
    integer(kind=4), Save :: Savetime ,y_int, Org_ID_ishape , PopTot, Time_addpop, Time_dif_st, Time_dif_rec   
-   integer(kind=4), save :: flw_rsltn   
+   integer(kind=4), save :: flw_rsltn  
 
    real(kind=8), Save    :: TimeScale, PixelSize, Porosity0, POROSITY_THRESHOLD, Porosity_DecayRate, Tolerance
    real(kind=8), Save    :: SedimentationRate, SedRate, DecayConstant, AspectRatio
@@ -44,6 +44,7 @@
    real(kind=8), save    :: totO2, pretotO2, reso2
    real(kind=8), save    :: Time_Ash , Ash_thickness , Ash_porosity    
    real(kind=8), save    :: pal ,iox , OM_uni ,fact , bio_fact , dif_0 ,mo2 ,kdcy ,width_3d ,shearfact , corg_0 
+   real(kind=8), save    :: pump_fact
 
    Character*3   :: Porosity_Type
    Character*14  :: CurrentTime
