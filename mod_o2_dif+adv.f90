@@ -107,7 +107,7 @@ subroutine O2pre_setup()
 
 use globalvariables
 implicit none
-integer(kind=4) :: x, y, i
+integer(kind=4) :: x, y, i, cnt
 integer(kind=4) :: up(n_row,n_col), down(n_row,n_col)
 
 up = 0
@@ -117,68 +117,154 @@ O2%value_pre = 0
 
 up(1,:) = 1
 down(n_row,:) = 1
+cnt = 100
+do while (cnt > 0) 
+    cnt = 0 
+    do y = 2, n_row
+        do x = 1, N_Col
+            if (matrix(y,x)%class == p ) cycle
+            if (up(y,x) == 1) cycle 
+            if (up(y-1,x)/=0) up(y,x) = 1
+            if (x == 1) then
+                if (up(y,2)/=0) up(y,x) = 1
+                if (up(y,n_col)/=0) up(y,x) = 1
+            else if (x==n_col) then  
+                if (up(y,1)/=0) up(y,x) = 1
+                if (up(y,n_col-1)/=0) up(y,x) = 1
+            else
+                if (up(y,x+1)/=0) up(y,x) = 1
+                if (up(y,x-1)/=0) up(y,x) = 1
+            end if 
+            if (up(y,x) == 1) cnt = cnt + 1
+        end do
 
-do y = 2, n_row
-    do x = 1, N_Col
-        if (matrix(y,x)%class == p ) cycle
-        if (up(y-1,x)/=0) up(y,x) = 1
-        if (x == 1) then
-            if (up(y,2)/=0) up(y,x) = 1
-            if (up(y,n_col)/=0) up(y,x) = 1
-        else if (x==n_col) then  
-            if (up(y,1)/=0) up(y,x) = 1
-            if (up(y,n_col-1)/=0) up(y,x) = 1
-        else
-            if (up(y,x+1)/=0) up(y,x) = 1
-            if (up(y,x-1)/=0) up(y,x) = 1
-        end if 
+        do x = n_col, 1, -1
+            if (matrix(y,x)%class == p ) cycle
+            if (up(y,x) == 1) cycle 
+            if (up(y-1,x)/=0) up(y,x) = 1
+            if (x == 1) then
+                if (up(y,2)/=0) up(y,x) = 1
+                if (up(y,n_col)/=0) up(y,x) = 1
+            else if (x==n_col) then  
+                if (up(y,1)/=0) up(y,x) = 1
+                if (up(y,n_col-1)/=0) up(y,x) = 1
+            else
+                if (up(y,x+1)/=0) up(y,x) = 1
+                if (up(y,x-1)/=0) up(y,x) = 1
+            end if 
+            if (up(y,x) == 1) cnt = cnt + 1
+        end do
     end do
 
-    do x = n_col, 1, -1
-        if (matrix(y,x)%class == p ) cycle
-        if (x == 1) then
-            if (up(y,2)/=0) up(y,x) = 1
-            if (up(y,n_col)/=0) up(y,x) = 1
-        else if (x==n_col) then  
-            if (up(y,1)/=0) up(y,x) = 1
-            if (up(y,n_col-1)/=0) up(y,x) = 1
-        else
-            if (up(y,x+1)/=0) up(y,x) = 1
-            if (up(y,x-1)/=0) up(y,x) = 1
-        end if 
-    end do
-end do
+    do y = n_row-1, 1, -1
+        do x = 1, N_Col
+            if (matrix(y,x)%class == p ) cycle
+            if (up(y,x) == 1) cycle 
+            if (up(y+1,x)/=0) up(y,x) = 1
+            if (x == 1) then
+                if (up(y,2)/=0) up(y,x) = 1
+                if (up(y,n_col)/=0) up(y,x) = 1
+            else if (x==n_col) then  
+                if (up(y,1)/=0) up(y,x) = 1
+                if (up(y,n_col-1)/=0) up(y,x) = 1
+            else
+                if (up(y,x+1)/=0) up(y,x) = 1
+                if (up(y,x-1)/=0) up(y,x) = 1
+            end if 
+            if (up(y,x) == 1) cnt = cnt + 1
+        end do
 
-do y = n_row-1, 1, -1
-    do x = 1, N_Col
-        if (matrix(y,x)%class == p ) cycle
-        if (down(y+1,x)/=0) down(y,x) = 1
-        if (x == 1) then
-            if (down(y,2)/=0) down(y,x) = 1
-            if (down(y,n_col)/=0) down(y,x) = 1
-        else if (x==n_col) then  
-            if (down(y,1)/=0) down(y,x) = 1
-            if (down(y,n_col-1)/=0) down(y,x) = 1
-        else
-            if (down(y,x+1)/=0) down(y,x) = 1
-            if (down(y,x-1)/=0) down(y,x) = 1
-        end if 
+        do x = n_col, 1, -1
+            if (matrix(y,x)%class == p ) cycle
+            if (up(y,x) == 1) cycle 
+            if (up(y+1,x)/=0) up(y,x) = 1
+            if (x == 1) then
+                if (up(y,2)/=0) up(y,x) = 1
+                if (up(y,n_col)/=0) up(y,x) = 1
+            else if (x==n_col) then  
+                if (up(y,1)/=0) up(y,x) = 1
+                if (up(y,n_col-1)/=0) up(y,x) = 1
+            else
+                if (up(y,x+1)/=0) up(y,x) = 1
+                if (up(y,x-1)/=0) up(y,x) = 1
+            end if 
+            if (up(y,x) == 1) cnt = cnt + 1
+        end do
     end do
 
-    do x = n_col, 1, -1
-        if (matrix(y,x)%class == p ) cycle
-        if (x == 1) then
-            if (down(y,2)/=0) down(y,x) = 1
-            if (down(y,n_col)/=0) down(y,x) = 1
-        else if (x==n_col) then  
-            if (down(y,1)/=0) down(y,x) = 1
-            if (down(y,n_col-1)/=0) down(y,x) = 1
-        else
-            if (down(y,x+1)/=0) down(y,x) = 1
-            if (down(y,x-1)/=0) down(y,x) = 1
-        end if 
+    do y = n_row-1, 1, -1
+        do x = 1, N_Col
+            if (matrix(y,x)%class == p ) cycle
+            if (down(y,x) == 1) cycle 
+            if (down(y+1,x)/=0) down(y,x) = 1
+            if (x == 1) then
+                if (down(y,2)/=0) down(y,x) = 1
+                if (down(y,n_col)/=0) down(y,x) = 1
+            else if (x==n_col) then  
+                if (down(y,1)/=0) down(y,x) = 1
+                if (down(y,n_col-1)/=0) down(y,x) = 1
+            else
+                if (down(y,x+1)/=0) down(y,x) = 1
+                if (down(y,x-1)/=0) down(y,x) = 1
+            end if 
+            if (down(y,x) == 1) cnt = cnt + 1
+        end do
+
+        do x = n_col, 1, -1
+            if (matrix(y,x)%class == p ) cycle
+            if (down(y,x) == 1) cycle 
+            if (down(y+1,x)/=0) down(y,x) = 1
+            if (x == 1) then
+                if (down(y,2)/=0) down(y,x) = 1
+                if (down(y,n_col)/=0) down(y,x) = 1
+            else if (x==n_col) then  
+                if (down(y,1)/=0) down(y,x) = 1
+                if (down(y,n_col-1)/=0) down(y,x) = 1
+            else
+                if (down(y,x+1)/=0) down(y,x) = 1
+                if (down(y,x-1)/=0) down(y,x) = 1
+            end if 
+            if (down(y,x) == 1) cnt = cnt + 1
+        end do
     end do
-end do
+
+    do y = 2, n_row
+        do x = 1, N_Col
+            if (matrix(y,x)%class == p ) cycle
+            if (down(y,x) == 1) cycle 
+            if (down(y-1,x)/=0) down(y,x) = 1
+            if (x == 1) then
+                if (down(y,2)/=0) down(y,x) = 1
+                if (down(y,n_col)/=0) down(y,x) = 1
+            else if (x==n_col) then  
+                if (down(y,1)/=0) down(y,x) = 1
+                if (down(y,n_col-1)/=0) down(y,x) = 1
+            else
+                if (down(y,x+1)/=0) down(y,x) = 1
+                if (down(y,x-1)/=0) down(y,x) = 1
+            end if 
+            if (down(y,x) == 1) cnt = cnt + 1
+        end do
+
+        do x = n_col, 1, -1
+            if (matrix(y,x)%class == p ) cycle
+            if (down(y,x) == 1) cycle 
+            if (down(y-1,x)/=0) down(y,x) = 1
+            if (x == 1) then
+                if (down(y,2)/=0) down(y,x) = 1
+                if (down(y,n_col)/=0) down(y,x) = 1
+            else if (x==n_col) then  
+                if (down(y,1)/=0) down(y,x) = 1
+                if (down(y,n_col-1)/=0) down(y,x) = 1
+            else
+                if (down(y,x+1)/=0) down(y,x) = 1
+                if (down(y,x-1)/=0) down(y,x) = 1
+            end if 
+            if (down(y,x) == 1) cnt = cnt + 1
+        end do
+    end do
+
+enddo 
 
 where ((up/=0).or.(down/=0)) O2%value_pre = 1
 
@@ -248,7 +334,7 @@ logical :: flg_stop = .false.
 integer(kind=4):: col,row, xp,xg, yp,yg, ppp,ai_tmp(5),ai_sort(5)
 real(kind=8) :: ax_tmp(5)
 ! logical :: calc_form = .true.
-real(kind=8) :: form_btm, form_top, ec_top, ec_btm
+real(kind=8) :: form_btm, form_top, ec_top, ec_btm, ec_w
 real(kind=8) :: ep_top = 200d0, ep_btm = 100d0
 real(kind=8) :: sigma = 4d-2 ! ohm-1 cm-1; electrical conductivity of seawater, cf., Tyler et al. 2007
 real(kind=8) :: elecp(n_row,n_col)
@@ -896,12 +982,14 @@ if (resp_ON) then
     enddo 
 endif 
 
+Totresp = -Totresp
+
 TotO2dif = TotO2dif*iox*1e-3*width_3d*(pixelSize)*(PixelSize)
 TotO2adv = TotO2adv*iox*1e-3*width_3d*(pixelSize)*(PixelSize)
 TotOrgdecay = Totorgdecay*iox*1e-3*width_3d*(pixelSize)*(PixelSize)
 Totresp = Totresp*iox*1e-3*width_3d*(pixelSize)*(PixelSize)
 do2dt = do2dt*iox*1e-3*width_3d*(pixelSize)*(PixelSize)
-totAbio = totOrgDecay - Totresp 
+totAbio = -(abs(totOrgDecay) - abs(Totresp) )
 reso2 = do2dt + toto2dif + toto2adv + totorgdecay 
 
 ! stop  !!!
@@ -1168,15 +1256,21 @@ if (calc_form) then
     enddo
     ec_top = 0d0 
     ec_btm = 0d0
+    ec_w   = 0d0
     do xx = 1, n_col
+        ec_w = ec_w - sigma*(ep_btm-ep_top)/(n_row*dx)
         yy = y_int  + 1
-        if (matrix(yy,xx)%class /= p) ec_top = ec_top - sigma*(elecp(yy,xx)-ep_top)/dx 
+        if (matrix(yy,xx)%class /= p) ec_top = ec_top - sigma*(elecp(yy,xx)-ep_top)/dx
         yy = y_fin
-        if (matrix(yy,xx)%class /= p) ec_btm = ec_btm - sigma*(ep_btm-elecp(yy,xx))/dx 
+        if (matrix(yy,xx)%class /= p) ec_btm = ec_btm - sigma*(ep_btm-elecp(yy,xx))/dx
     enddo 
     
-    form_top = (ep_top - ep_btm)/(n_row*dx)/(ec_top*dx*width_3d/n_col/dx/width_3d)*sigma
-    form_btm = (ep_top - ep_btm)/(n_row*dx)/(ec_btm*dx*width_3d/n_col/dx/width_3d)*sigma
+    ! form_top = -sigma*(ep_btm - ep_top)/(n_row*dx)/(ec_top/(n_col))
+    ! form_btm = -sigma*(ep_btm - ep_top)/(n_row*dx)/(ec_btm/(n_col))
+    form_top = ec_w/ec_top
+    form_btm = ec_w/ec_btm
+    
+    ! print *, -sigma*(ep_btm - ep_top)/(n_row*dx), (ec_btm/(n_col))
     
     print '(A)','        *****************************'
     print '(A15,2A11)','','UP','DOWN'
