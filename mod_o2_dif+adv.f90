@@ -512,13 +512,11 @@ do yy = y_int  + 1, y_fin
 
         if (yy == y_int  + 1) then
         
-            ax_tmp( 1 ) = ax_tmp( 1 ) - edif(yy,xx)*(1.0d0  - 0d0)/dx/dx &
-                + (edif(yy,xx)-edif(yy-1,xx))*(1.0d0-0d0)/dx/dx
-            b(row)      = b(row)       - edif(yy,xx)*(0d0 - oxup)/dx/dx &
-                + (edif(yy,xx)-edif(yy-1,xx))*(0d0-oxup)/dx/dx   
+            ax_tmp( 1 ) = ax_tmp( 1 ) + (-0.5d0*(edif(yy,xx)+edif(yy-1,xx))*(1.0d0  - 0d0)/dx)/dx 
+            b(row)      = b(row)      + (-0.5d0*(edif(yy,xx)+edif(yy-1,xx))*(0d0 - oxup)/dx)/dx 
                 
-            ax_tmp( 1 ) = ax_tmp( 1 ) - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0-0d0) )/dx
-            b(row)      = b(row)       - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(0d0-oxup) )/dx 
+            ax_tmp( 1 ) = ax_tmp( 1 ) - ((Vom(xx,yy)+abs(Vom(xx,yy)))*0.5d0*(1d0-0d0) )/dx
+            b(row)      = b(row)       - ((Vom(xx,yy)+abs(Vom(xx,yy)))*0.5d0*(0d0-oxup) )/dx 
             
             xp = xx + 1
             xg = xx - 1
@@ -532,12 +530,11 @@ do yy = y_int  + 1, y_fin
                 cnt2 = cnt2+ 1
                 ai_tmp(cnt2) = col 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
-                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xp)*(1d0 - 0d0)/dx/dx  &
-                    + (edif(yy,xp)-edif(yy,xx))*(0d0 - 1d0)/dx/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) + (0.5d0*(edif(yy,xx)+edif(yy,xp))*(0d0 - 1d0)/dx)/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + (-0.5d0*(edif(yy,xp)+edif(yy,xx))*(0d0 - 1d0)/dx)/dx 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(0d0-1d0) )/dx   
-                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uo(xp,yy)+abs(Uo(xp,yy)))*0.5d0*(0d0-1d0) )/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uom(xx+1,yy)-abs(Uom(xx+1,yy)))*0.5d0*(0d0-1d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uom(xp,yy)+abs(Uom(xp,yy)))*0.5d0*(0d0-1d0) )/dx 
             endif 
                 
             if (matrix(yy,xg)%class /=p) then 
@@ -545,12 +542,11 @@ do yy = y_int  + 1, y_fin
                 cnt2 = cnt2+ 1
                 ai_tmp(cnt2) = col 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  &
-                    + (edif(yy,xx)-edif(yy,xg))*(1d0 - 0d0)/dx/dx 
-                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xg)*(1d0 - 0d0)/dx/dx  
+                ax_tmp( 1  ) = ax_tmp( 1  ) + (-0.5d0*(edif(yy,xx)+edif(yy,xg))*(1d0 - 0d0)/dx)/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + (0.5d0*(edif(yy,xx)+edif(yy,xg))*(1d0 - 0d0)/dx)/dx  
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
-                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uo(xg,yy)-abs(Uo(xg,yy)))*0.5d0*(1d0-0d0) )/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uom(xx,yy)+abs(Uom(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uom(xg+1,yy)-abs(Uom(xg+1,yy)))*0.5d0*(1d0-0d0) )/dx 
             endif 
                 
             if (matrix(yp,xx)%class /=p) then 
@@ -558,12 +554,11 @@ do yy = y_int  + 1, y_fin
                 cnt2 = cnt2+ 1
                 ai_tmp(cnt2) = col 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
-                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yp,xx)*(1d0 - 0d0)/dx/dx  &
-                    + (edif(yp,xx)-edif(yy,xx))*(0d0 - 1d0)/dx/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) + (0.5d0*(edif(yy,xx)+edif(yp,xx))*(0d0 - 1d0)/dx)/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + (-0.5d0*(edif(yy,xx)+edif(yp,xx))*(0d0 - 1d0)/dx)/dx  
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(0d0-1d0) )/dx   
-                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Vo(xx,yp)+abs(Vo(xx,yp)))*0.5d0*(0d0-1d0) )/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Vom(xx,yy+1)-abs(Vom(xx,yy+1)))*0.5d0*(0d0-1d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Vom(xx,yp)+abs(Vom(xx,yp)))*0.5d0*(0d0-1d0) )/dx 
             endif 
 
         ELSE IF (yy == y_fin) THEN
@@ -580,12 +575,11 @@ do yy = y_int  + 1, y_fin
                 cnt2 = cnt2+ 1
                 ai_tmp(cnt2) = col 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
-                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xp)*(1d0 - 0d0)/dx/dx  &
-                    + (edif(yy,xp)-edif(yy,xx))*(0d0 - 1d0)/dx/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) + (0.5d0*(edif(yy,xx)+edif(yy,xp))*(0d0 - 1d0)/dx)/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + (-0.5d0*(edif(yy,xp)+edif(yy,xx))*(0d0 - 1d0)/dx)/dx 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(0d0-1d0) )/dx   
-                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uo(xp,yy)+abs(Uo(xp,yy)))*0.5d0*(0d0-1d0) )/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uom(xx+1,yy)-abs(Uom(xx+1,yy)))*0.5d0*(0d0-1d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uom(xp,yy)+abs(Uom(xp,yy)))*0.5d0*(0d0-1d0) )/dx 
             endif 
                 
             if (matrix(yy,xg)%class /=p) then 
@@ -593,12 +587,11 @@ do yy = y_int  + 1, y_fin
                 cnt2 = cnt2+ 1
                 ai_tmp(cnt2) = col 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  &
-                    + (edif(yy,xx)-edif(yy,xg))*(1d0 - 0d0)/dx/dx 
-                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xg)*(1d0 - 0d0)/dx/dx  
+                ax_tmp( 1  ) = ax_tmp( 1  ) + (-0.5d0*(edif(yy,xx)+edif(yy,xg))*(1d0 - 0d0)/dx)/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + (0.5d0*(edif(yy,xx)+edif(yy,xg))*(1d0 - 0d0)/dx)/dx  
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
-                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uo(xg,yy)-abs(Uo(xg,yy)))*0.5d0*(1d0-0d0) )/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uom(xx,yy)+abs(Uom(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uom(xg+1,yy)-abs(Uom(xg+1,yy)))*0.5d0*(1d0-0d0) )/dx 
             endif 
                 
             if (matrix(yg,xx)%class /=p) then 
@@ -606,12 +599,11 @@ do yy = y_int  + 1, y_fin
                 cnt2 = cnt2+ 1
                 ai_tmp(cnt2) = col 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  &
-                    + (edif(yy,xx)-edif(yg,xx))*(1d0 - 0d0)/dx/dx 
-                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yg,xx)*(1d0 - 0d0)/dx/dx  
+                ax_tmp( 1  ) = ax_tmp( 1  ) + (-0.5d0*(edif(yy,xx)+edif(yg,xx))*(1d0 - 0d0)/dx)/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + (0.5d0*(edif(yy,xx)+edif(yg,xx))*(1d0 - 0d0)/dx)/dx 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
-                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Vo(xx,yg)-abs(Vo(xx,yg)))*0.5d0*(1d0-0d0) )/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Vom(xx,yy)+abs(Vom(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Vom(xx,yg+1)-abs(Vom(xx,yg+1)))*0.5d0*(1d0-0d0) )/dx 
             endif 
 
         ELSE 
@@ -629,12 +621,11 @@ do yy = y_int  + 1, y_fin
                 cnt2 = cnt2+ 1
                 ai_tmp(cnt2) = col 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
-                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xp)*(1d0 - 0d0)/dx/dx  &
-                    + (edif(yy,xp)-edif(yy,xx))*(0d0 - 1d0)/dx/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) + (0.5d0*(edif(yy,xx)+edif(yy,xp))*(0d0 - 1d0)/dx)/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + (-0.5d0*(edif(yy,xp)+edif(yy,xx))*(0d0 - 1d0)/dx)/dx
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(0d0-1d0) )/dx   
-                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uo(xp,yy)+abs(Uo(xp,yy)))*0.5d0*(0d0-1d0) )/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uom(xx+1,yy)-abs(Uom(xx+1,yy)))*0.5d0*(0d0-1d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uom(xp,yy)+abs(Uom(xp,yy)))*0.5d0*(0d0-1d0) )/dx 
             endif 
                 
             if (matrix(yy,xg)%class /=p) then 
@@ -642,12 +633,11 @@ do yy = y_int  + 1, y_fin
                 cnt2 = cnt2+ 1
                 ai_tmp(cnt2) = col 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  &
-                    + (edif(yy,xx)-edif(yy,xg))*(1d0 - 0d0)/dx/dx 
-                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yy,xg)*(1d0 - 0d0)/dx/dx  
+                ax_tmp( 1  ) = ax_tmp( 1  ) + (-0.5d0*(edif(yy,xx)+edif(yy,xg))*(1d0 - 0d0)/dx)/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + (0.5d0*(edif(yy,xx)+edif(yy,xg))*(1d0 - 0d0)/dx)/dx  
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
-                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uo(xg,yy)-abs(Uo(xg,yy)))*0.5d0*(1d0-0d0) )/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Uom(xx,yy)+abs(Uom(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Uom(xg+1,yy)-abs(Uom(xg+1,yy)))*0.5d0*(1d0-0d0) )/dx 
             endif 
                 
             if (matrix(yg,xx)%class /=p) then 
@@ -655,12 +645,11 @@ do yy = y_int  + 1, y_fin
                 cnt2 = cnt2+ 1
                 ai_tmp(cnt2) = col 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  &
-                    + (edif(yy,xx)-edif(yg,xx))*(1d0 - 0d0)/dx/dx 
-                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yg,xx)*(1d0 - 0d0)/dx/dx  
+                ax_tmp( 1  ) = ax_tmp( 1  ) + (-0.5d0*(edif(yy,xx)+edif(yg,xx))*(1d0 - 0d0)/dx)/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + (0.5d0*(edif(yy,xx)+edif(yg,xx))*(1d0 - 0d0)/dx)/dx   
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
-                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Vo(xx,yg)-abs(Vo(xx,yg)))*0.5d0*(1d0-0d0) )/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Vom(xx,yy)+abs(Vom(xx,yy)))*0.5d0*(1d0-0d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Vom(xx,yg+1)-abs(Vom(xx,yg+1)))*0.5d0*(1d0-0d0) )/dx 
             endif 
                 
             if (matrix(yp,xx)%class /=p) then 
@@ -668,12 +657,11 @@ do yy = y_int  + 1, y_fin
                 cnt2 = cnt2+ 1
                 ai_tmp(cnt2) = col 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) + edif(yy,xx)*(0d0 - 1d0)/dx/dx  
-                ax_tmp(cnt2) = ax_tmp(cnt2) + edif(yp,xx)*(1d0 - 0d0)/dx/dx  &
-                    + (edif(yp,xx)-edif(yy,xx))*(0d0 - 1d0)/dx/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) + (0.5d0*(edif(yy,xx)+edif(yp,xx))*(0d0 - 1d0)/dx)/dx  
+                ax_tmp(cnt2) = ax_tmp(cnt2) + (-0.5d0*(edif(yy,xx)+edif(yp,xx))*(0d0 - 1d0)/dx)/dx 
                 
-                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(0d0-1d0) )/dx   
-                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Vo(xx,yp)+abs(Vo(xx,yp)))*0.5d0*(0d0-1d0) )/dx 
+                ax_tmp( 1  ) = ax_tmp( 1  ) - ((Vom(xx,yy+1)-abs(Vom(xx,yy+1)))*0.5d0*(0d0-1d0) )/dx   
+                ax_tmp(cnt2) = ax_tmp(cnt2) - ((Vom(xx,yp)+abs(Vom(xx,yp)))*0.5d0*(0d0-1d0) )/dx 
             endif 
 
         END IF
@@ -857,10 +845,9 @@ do yy = y_int  + 1, y_fin
 
         if (yy == y_int  + 1) then
             
-            toto2dif = toto2dif - edif(yy,xx)*(o2(yy,xx)%oxygen  - oxup)/dx/dx &
-                + (edif(yy,xx)-edif(yy-1,xx))*(o2(yy,xx)%oxygen  - oxup)/dx/dx
+            toto2dif = toto2dif + (-0.5d0*(edif(yy,xx)+edif(yy-1,xx))*(o2(yy,xx)%oxygen  - oxup)/dx)/dx 
             
-            toto2adv = toto2adv - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen  - oxup) )/dx
+            toto2adv = toto2adv - ((Vom(xx,yy)+abs(Vom(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen  - oxup) )/dx
             
             
             xp = xx + 1
@@ -872,24 +859,23 @@ do yy = y_int  + 1, y_fin
                 
             if (matrix(yy,xp)%class /=p) then 
             
-                toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen)/dx/dx
+                toto2dif = toto2dif + (0.5d0*(edif(yy,xx)+edif(yy,xp))*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen)/dx)/dx
                 
-                toto2adv = toto2adv - ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen) )/dx 
+                toto2adv = toto2adv - ((Uom(xx+1,yy)-abs(Uom(xx+1,yy)))*0.5d0*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen) )/dx 
             endif 
                 
             if (matrix(yy,xg)%class /=p) then 
             
-                toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xg)%oxygen - o2(yy,xx)%oxygen)/dx/dx  &
-                    + (edif(yy,xx)-edif(yy,xg))*(o2(yy,xx)%oxygen - o2(yy,xg)%oxygen)/dx/dx 
+                toto2dif = toto2dif + (-0.5d0*(edif(yy,xx)+edif(yy,xg))*(o2(yy,xx)%oxygen - o2(yy,xg)%oxygen)/dx)/dx  
                 
-                toto2adv = toto2adv - ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yy,xg)%oxygen) )/dx  
+                toto2adv = toto2adv - ((Uom(xx,yy)+abs(Uom(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yy,xg)%oxygen) )/dx  
             endif 
                 
             if (matrix(yp,xx)%class /=p) then 
             
-                toto2dif = toto2dif + edif(yy,xx)*(o2(yp,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx  
+                toto2dif = toto2dif + (0.5d0*(edif(yy,xx)+edif(yp,xx))*(o2(yp,xx)%oxygen - o2(yy,xx)%oxygen)/dx)/dx  
                 
-                toto2adv = toto2adv - ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(o2(yp,xx)%oxygen-o2(yy,xx)%oxygen) )/dx 
+                toto2adv = toto2adv - ((Vom(xx,yy+1)-abs(Vom(xx,yy+1)))*0.5d0*(o2(yp,xx)%oxygen-o2(yy,xx)%oxygen) )/dx 
             endif 
 
         ELSE IF (yy == y_fin) THEN
@@ -903,25 +889,23 @@ do yy = y_int  + 1, y_fin
                 
             if (matrix(yy,xp)%class /=p) then 
             
-                toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen)/dx/dx
+                toto2dif = toto2dif + (0.5d0*(edif(yy,xx)+edif(yy,xp))*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen)/dx)/dx
                 
-                toto2adv = toto2adv - ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen) )/dx 
+                toto2adv = toto2adv - ((Uom(xx+1,yy)-abs(Uom(xx+1,yy)))*0.5d0*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen) )/dx 
             endif 
                 
             if (matrix(yy,xg)%class /=p) then 
             
-                toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xg)%oxygen - o2(yy,xx)%oxygen)/dx/dx  &
-                    + (edif(yy,xx)-edif(yy,xg))*(o2(yy,xx)%oxygen - o2(yy,xg)%oxygen)/dx/dx 
+                toto2dif = toto2dif + (-0.5d0*(edif(yy,xx)+edif(yy,xg))*(o2(yy,xx)%oxygen - o2(yy,xg)%oxygen)/dx)/dx  
                 
-                toto2adv = toto2adv - ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yy,xg)%oxygen) )/dx  
+                toto2adv = toto2adv - ((Uom(xx,yy)+abs(Uom(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yy,xg)%oxygen) )/dx  
             endif 
                 
             if (matrix(yg,xx)%class /=p) then 
             
-                toto2dif = toto2dif + edif(yy,xx)*(o2(yg,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx  &
-                    + (edif(yy,xx)-edif(yg,xx))*(o2(yy,xx)%oxygen - o2(yg,xx)%oxygen)/dx/dx 
+                toto2dif = toto2dif + (-0.5d0*(edif(yy,xx)+edif(yg,xx))*(o2(yy,xx)%oxygen - o2(yg,xx)%oxygen)/dx)/dx 
                     
-                toto2adv = toto2adv - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yg,xx)%oxygen) )/dx  
+                toto2adv = toto2adv - ((Vom(xx,yy)+abs(Vom(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yg,xx)%oxygen) )/dx  
             endif 
 
         ELSE 
@@ -936,32 +920,30 @@ do yy = y_int  + 1, y_fin
                 
             if (matrix(yy,xp)%class /=p) then 
             
-                toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen)/dx/dx
+                toto2dif = toto2dif + (0.5d0*(edif(yy,xx)+edif(yy,xp))*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen)/dx)/dx
                 
-                toto2adv = toto2adv - ((Uo(xx,yy)-abs(Uo(xx,yy)))*0.5d0*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen) )/dx 
+                toto2adv = toto2adv - ((Uom(xx+1,yy)-abs(Uom(xx+1,yy)))*0.5d0*(o2(yy,xp)%oxygen - o2(yy,xx)%oxygen) )/dx 
             endif 
                 
             if (matrix(yy,xg)%class /=p) then 
             
-                toto2dif = toto2dif + edif(yy,xx)*(o2(yy,xg)%oxygen - o2(yy,xx)%oxygen)/dx/dx  &
-                    + (edif(yy,xx)-edif(yy,xg))*(o2(yy,xx)%oxygen - o2(yy,xg)%oxygen)/dx/dx 
+                toto2dif = toto2dif + (-0.5d0*(edif(yy,xx)+edif(yy,xg))*(o2(yy,xx)%oxygen - o2(yy,xg)%oxygen)/dx)/dx  
                 
-                toto2adv = toto2adv - ((Uo(xx,yy)+abs(Uo(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yy,xg)%oxygen) )/dx  
+                toto2adv = toto2adv - ((Uom(xx,yy)+abs(Uom(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yy,xg)%oxygen) )/dx  
             endif 
                 
             if (matrix(yg,xx)%class /=p) then 
             
-                toto2dif = toto2dif + edif(yy,xx)*(o2(yg,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx  &
-                    + (edif(yy,xx)-edif(yg,xx))*(o2(yy,xx)%oxygen - o2(yg,xx)%oxygen)/dx/dx 
+                toto2dif = toto2dif + (-0.5d0*(edif(yy,xx)+edif(yg,xx))*(o2(yy,xx)%oxygen - o2(yg,xx)%oxygen)/dx)/dx 
                     
-                toto2adv = toto2adv - ((Vo(xx,yy)+abs(Vo(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yg,xx)%oxygen) )/dx  
+                toto2adv = toto2adv - ((Vom(xx,yy)+abs(Vom(xx,yy)))*0.5d0*(o2(yy,xx)%oxygen-o2(yg,xx)%oxygen) )/dx  
             endif 
                 
             if (matrix(yp,xx)%class /=p) then 
             
-                toto2dif = toto2dif + edif(yy,xx)*(o2(yp,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx  
+                toto2dif = toto2dif + 0.5d0*(edif(yy,xx)+edif(yp,xx))*(o2(yp,xx)%oxygen - o2(yy,xx)%oxygen)/dx/dx 
                 
-                toto2adv = toto2adv - ((Vo(xx,yy)-abs(Vo(xx,yy)))*0.5d0*(o2(yp,xx)%oxygen-o2(yy,xx)%oxygen) )/dx 
+                toto2adv = toto2adv - ((Vom(xx,yy+1)-abs(Vom(xx,yy+1)))*0.5d0*(o2(yp,xx)%oxygen-o2(yy,xx)%oxygen) )/dx 
             endif 
 
         END IF
@@ -1010,17 +992,17 @@ endif
 ! if (abs(reso2)/minval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt/)))>1e-2  &
     ! .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-14   &
     ! ) then 
-if (abs(TotO2Adv) > 1d-14) then 
+if (abs(TotO2Adv) > 1d-12) then 
     if (abs(reso2)/abs(TotO2Adv) >1d-2 &
-        .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-14   &
+        .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-12   &
         ) then 
         print *, 'too large error in flx wrt adv: ',abs(reso2)/abs(TotO2Adv)
         pause
     endif 
 endif 
-if (abs(TotO2dif) > 1d-14) then 
+if (abs(TotO2dif) > 1d-12) then 
     if (abs(reso2)/abs(TotO2dif) >1d-2 &
-        .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-14   &
+        .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-12   &
         ) then 
         print *, 'too large error in flx wrt dif: ',abs(reso2)/abs(TotO2dif)
         pause

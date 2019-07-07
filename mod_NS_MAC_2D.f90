@@ -38,7 +38,7 @@ logical :: flow_dir_x
 logical :: choice_done
 
 real(kind=8)  :: rdm(5)
-real(kind=8)  :: Ptop = 1d1  ! in g/cm/s/s (*** note: Pa = 10 g/cm/s/s and 1 atm = 1e5 Pa, i.e., P = 1 (g/cm/s/s) corresponds 0.1 Pa and 1 uatm )
+real(kind=8)  :: Ptop = 1d0  ! in g/cm/s/s (*** note: Pa = 10 g/cm/s/s and 1 atm = 1e5 Pa, i.e., P = 1 (g/cm/s/s) corresponds 0.1 Pa and 1 uatm )
 real(kind=8)  :: Pbot = 1d0
 real(kind=8)  :: VelC          ! in cm/s
 real(kind=8)  :: new = 0.015d0 ! viscosity in g/cm/s
@@ -138,6 +138,7 @@ if (calc_perm) then
     const_top = .true.
     nstep = 100
     Pbot = 0d0
+    delt = delh/2.0d0/flw_rsltn
     cat_tmp = 'geo'
 else 
     const_bot = .false.
@@ -1334,20 +1335,46 @@ Vc(:,:) = (Vm(:,1:ny+2) + Vm(:,2:ny+3))/2.0d0
 if (flw_rsltn == 1) then 
     Uo(:,:) = Uc(:,2:ny+1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
     Vo(:,:) = Vc(:,2:ny+1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+    Uom(:,:) = Um(:,2:ny+1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+    Vom(:,:) = Vm(:,2:ny+2)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
 elseif (flw_rsltn/=1) then 
     do yy=1,ny/flw_rsltn
         do xx=1,nx/flw_rsltn
             Uo(xx,yy) = 0
             Vo(xx,yy) = 0
+            Uom(xx,yy) = 0
+            Vom(xx,yy) = 0
             do xxx=1,flw_rsltn
                 do yyy = 1,flw_rsltn
                     Uo(xx,yy) = Uo(xx,yy) + Uc((xx-1)*flw_rsltn+1+xxx-1,(yy-1)*flw_rsltn+1+1+yyy-1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
                     Vo(xx,yy) = Vo(xx,yy) + Vc((xx-1)*flw_rsltn+1+xxx-1,(yy-1)*flw_rsltn+1+1+yyy-1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+                    Uom(xx,yy) = Uom(xx,yy) + Um((xx-1)*flw_rsltn+1+xxx-1,(yy-1)*flw_rsltn+1+1+yyy-1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+                    Vom(xx,yy) = Vom(xx,yy) + Vm((xx-1)*flw_rsltn+1+xxx-1,(yy-1)*flw_rsltn+1+1+yyy-1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
                 enddo
             enddo
             Uo(xx,yy) = Uo(xx,yy)/flw_rsltn/flw_rsltn
             Vo(xx,yy) = Vo(xx,yy)/flw_rsltn/flw_rsltn
+            Uom(xx,yy) = Uom(xx,yy)/flw_rsltn/flw_rsltn
+            Vom(xx,yy) = Vom(xx,yy)/flw_rsltn/flw_rsltn
         enddo
+    enddo
+    yy = ny/flw_rsltn + 1
+    do xx=1,nx/flw_rsltn
+        Vom(xx,yy) = 0
+            do xxx=1,flw_rsltn
+                yyy = ny+1 + 1
+                Vom(xx,yy) = Vom(xx,yy) + Vm((xx-1)*flw_rsltn+1+xxx-1,yyy)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+            enddo
+        Vom(xx,yy) = Vom(xx,yy)/flw_rsltn
+    enddo
+    xx = nx/flw_rsltn + 1
+    do yy=1,ny/flw_rsltn
+        Uom(xx,yy) = 0
+            do yyy=1,flw_rsltn
+                xxx = nx+1 
+                Uom(xx,yy) = Uom(xx,yy) + Um(xxx,(yy-1)*flw_rsltn+1+1+yyy-1)*60.d0*60.d0*24.0d0*365.0d0  !! cm/yr
+            enddo
+        Uom(xx,yy) = Uom(xx,yy)/flw_rsltn
     enddo
 endif
 if (chk_particles) then 

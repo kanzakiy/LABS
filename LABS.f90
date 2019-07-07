@@ -336,6 +336,8 @@
          if (.not.flow_ON) then
             Vo = 0.0
             Uo = 0.0
+            Vom = 0.0
+            Uom = 0.0
          end if 
 		 
          call oxygen_profile()
@@ -349,6 +351,7 @@
             continue
          else 
             O2%oxygen_use = 0.0
+            o2_nonloc     = 0
          end if
          
          
@@ -372,6 +375,7 @@
          call OrgDecay()
          ! call fluxes()
          O2%oxygen_use = 0.0
+         o2_nonloc     = 0
       Endif
          
       if (errDetect .and. errChk) then
@@ -428,6 +432,7 @@
             Call Output_txtImg()
             call Output_txtImg_chk()
             O2%oxygen_use = 0.0
+            o2_nonloc     = 0
             
             if (Perm_Rec) then 
                calc_perm = .true. 
@@ -520,6 +525,8 @@
 		 
       Vo = 0.
       Uo = 0.
+      Vom = 0.
+      Uom = 0.
       flow_loc = coordinates(0,0)
       Vb = 0.
       Ub = 0.
@@ -538,7 +545,7 @@
    ! clean up data allocations
 
    Deallocate (Org, Matrix, Particle, Org_Loc, Guts, MovementHistory, IngestionHistory, RespHistory, Dir_rec)
-   deallocate (O2, particle2,flow_loc, Ub, Vb, Ug,Vg, Pg, Dg, Uo,Vo,edif,RespCnst,DeathFlg)
+   deallocate (O2, particle2,flow_loc, Ub, Vb, Ug,Vg, Pg, Dg, Uo,Vo,edif,RespCnst,DeathFlg,Uom,Vom)
 
    Close(File_Displace)
    Close(File_Displace2)
@@ -827,10 +834,12 @@
    ny_flow = n_row*flw_rsltn
    allocate (Ug(nx_flow+1,ny_flow+2),Vg(nx_flow,ny_flow+2+1), Pg(nx_flow,ny_flow+2), Dg(nx_flow,ny_flow+2)) 
    allocate (Uo(N_col,N_row),Vo(N_col,N_row))
+   allocate (Uom(N_col+1,N_row),Vom(N_col,N_row+1))
    allocate (edif(n_row, n_col)) 
    allocate (DeathFlg(N_Ind)) 
    allocate (RespCnst(N_Ind)) 
    allocate (PopLogID(N_Ind)) 
+   allocate (o2_nonloc(N_row,N_col))
      
    PopTot = 0
 
@@ -2235,19 +2244,28 @@
          endif
          ! print *, Org_Loc(j,i)%Y, Org_Loc(j,i)%X
          Matrix(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = CellContent(j,i)
-         If (oxygen_ON) O2(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = O2(image(j)%Y, image(j)%X)
+         If (oxygen_ON) then 
+            O2(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = O2(image(j)%Y, image(j)%X)
+            o2_nonloc(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = 1
+         endif 
       END Do
       ! move the rest of the body
       DO j = Org(i)%HeadSize+1, Org(i)%BodySize
          Org_Loc(j,i) = Coordinates(Image(j-Org(I)%Width)%Y, Image(j-Org(I)%Width)%X)   !YK  translation of previous imange
          Matrix(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = CellContent(j,i)
-         If (oxygen_ON) O2(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = O2(image(j)%Y, image(j)%X)
+         If (oxygen_ON) then 
+            O2(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = O2(image(j)%Y, image(j)%X)
+            o2_nonloc(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = 1
+         endif 
       end do
       ! finish the organism's tail-fill empty cells with water
       Do j = 1, Org(I)%Width
          Tail(j) = Image(Org(i)%BodySize-Org(I)%Width+j)
          Matrix(Image(Org(i)%BodySize-Org(I)%Width+j)%Y, Image(Org(i)%BodySize-Org(I)%Width+j)%X) = CellContent(w,w)
-         If (oxygen_ON) O2(tail(j)%Y, tail(j)%X) = O2(image(j)%Y, image(j)%X)  
+         If (oxygen_ON) then 
+            O2(tail(j)%Y, tail(j)%X) = O2(image(j)%Y, image(j)%X) 
+            o2_nonloc(tail(j)%Y, tail(j)%X) = 1 
+         endif 
          !! exchange oxygen between occupied and emptied spaces by the movement of organism
       End do
 
@@ -2497,17 +2515,26 @@
       DO j =Org(i)%BodySize, Org(i)%BodySize-(Org(I)%Width-1), -1 ! move the tip of the tail
          Org_Loc(j,i) = Coordinates(Image(j)%Y+dY, Image(j)%X+dX)
          Matrix(Org_loc(j,i)%Y, Org_loc(j,i)%X) = CellContent(j,i)       
-         If (oxygen_ON) O2(Org_loc(j,i)%Y,Org_loc(j,i)%X) = O2(image(j)%Y,image(j)%X)   !! need be checked if working correctly
+         If (oxygen_ON) then 
+            O2(Org_loc(j,i)%Y,Org_loc(j,i)%X) = O2(image(j)%Y,image(j)%X)   !! need be checked if working correctly
+            o2_nonloc(Org_loc(j,i)%Y,Org_loc(j,i)%X)=1
+         endif 
       END Do
       DO j = Org(i)%BodySize-Org(I)%Width, 1, -1     ! move the rest of the body
          Org_Loc(j,i) = Coordinates(Image(j+Org(I)%Width)%Y, Image(j+Org(I)%Width)%X)
          Matrix(Org_loc(j,i)%Y,Org_loc(j,i)%X) = cellContent(j,i)   
-         If (oxygen_ON) O2(Org_loc(j,i)%Y,Org_loc(j,i)%X) = O2(image(j)%Y,image(j)%X)   !! need be checked if working correctly
+         If (oxygen_ON) then 
+            O2(Org_loc(j,i)%Y,Org_loc(j,i)%X) = O2(image(j)%Y,image(j)%X)   !! need be checked if working correctly
+            o2_nonloc(Org_loc(j,i)%Y,Org_loc(j,i)%X) =1
+         endif 
       end do
       Do j = Org(I)%Width, 1, -1
          Matrix(Image(j)%Y, Image(j)%X) = CellContent(w,w)
-         If (oxygen_ON) O2(image(j)%Y,image(j)%X) =               &
-            O2(image(Org(i)%BodySize- j + 1)%Y+dY,image(Org(i)%BodySize- j + 1)%X + dX)   !! need be checked if working correctly
+         If (oxygen_ON) then 
+            O2(image(j)%Y,image(j)%X) =               &
+               O2(image(Org(i)%BodySize- j + 1)%Y+dY,image(Org(i)%BodySize- j + 1)%X + dX)   !! need be checked if working correctly
+            o2_nonloc(image(j)%Y,image(j)%X) = 1
+         endif 
       End do
 
 
@@ -2653,7 +2680,10 @@
                MAtrix(Org_loc(k,i)%Y, Org_loc(k,i)%X) = Guts(j,i)
                particle(Guts(j,i)%value)%loc = Org_loc(k,i)   !! YK 
                particle2(Guts(j,i)%value)%loc = Org_loc(k,i)   !! YK 
-               if (oxygen_ON) O2(Org_loc(k,i)%Y, Org_loc(k,i)%X)%oxygen = 0.0
+               if (oxygen_ON) then 
+                  O2(Org_loc(k,i)%Y, Org_loc(k,i)%X)%oxygen = 0.0
+                  o2_nonloc(Org_loc(k,i)%Y, Org_loc(k,i)%X)=1
+               endif 
                Guts(j,i) = CellContent(w,w)
                Exit
             End if
@@ -2727,13 +2757,19 @@
          DO j =1, Org(I)%Width
             Org_Loc(j,i) = Coordinates(Image(j)%Y+dY, X_new)
             Matrix(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = CellContent(j,i)
-            if (oxygen_ON) O2(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = O2(image(j)%Y, image(j)%X)
+            if (oxygen_ON) then 
+               O2(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = O2(image(j)%Y, image(j)%X)
+               o2_nonloc(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) =1
+            endif 
          END Do
          ! move the rest of the head
          DO j =Org(I)%Width+1, k
             Org_Loc(j,i) = Coordinates(Image(j-Org(I)%Width)%Y, Image(j-Org(I)%Width)%X)
             Matrix(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = CellContent(j,i)
-            if (oxygen_ON) O2(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = O2(image(j)%Y, image(j)%X)
+            if (oxygen_ON) then 
+               O2(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = O2(image(j)%Y, image(j)%X)
+               o2_nonloc(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = 1
+            endif 
          END Do
 
       Case (.true.)
@@ -2742,7 +2778,10 @@
          DO j =1, k                                    ! move the head
             Org_Loc(j,i) = Coordinates(Image(j)%Y+dy, Image(j)%X+dX)
             Matrix(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = CellContent(j,i)
-            if (oxygen_ON) O2(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = O2(image(j)%Y, image(j)%X)
+            if (oxygen_ON) then 
+               O2(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = O2(image(j)%Y, image(j)%X)
+               o2_nonloc(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = 1
+            endif 
          END Do
    End Select
 
@@ -2750,13 +2789,19 @@
    DO j = k+1, Org(i)%BodySize
       Org_Loc(j,i) = Coordinates(Image(j-Org(I)%Width)%Y, Image(j-Org(I)%Width)%X)
       Matrix(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = CellContent(j,i)
-      if (oxygen_ON) O2(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = O2(image(j)%Y, image(j)%X)
+      if (oxygen_ON) then 
+         O2(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = O2(image(j)%Y, image(j)%X)
+         o2_nonloc(Org_Loc(j,i)%Y, Org_Loc(j,i)%X) = 1
+      endif 
    end do
    ! fix the tail
    Do j = 1, Org(I)%Width
       Tail(j) = Image(Org(i)%BodySize-Org(I)%Width+j)
       Matrix(Image(Org(i)%BodySize-Org(I)%Width+j)%Y, Image(Org(i)%BodySize-Org(I)%Width+j)%X) = CellContent(w,w)
-      if (oxygen_ON) O2(tail(j)%Y, tail(j)%X) = O2(image(j)%Y, image(j)%X)
+      if (oxygen_ON) then 
+         O2(tail(j)%Y, tail(j)%X) = O2(image(j)%Y, image(j)%X)
+         o2_nonloc(tail(j)%Y, tail(j)%X) = 1
+      endif 
    End do
 
    MovementHistory(i,1) = 1
@@ -3157,6 +3202,8 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
    O2(point%Y, point%X)%oxygen_pre       = 0.0 
    O2(point%Y, point%X)%value_pre        = 0
    O2(point%Y, point%X)%mark             = 0
+   
+   ! o2_nonloc(point%Y, point%X)           = 0.0
        
    End Subroutine Particle_add
 
@@ -3292,7 +3339,10 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
          If (IsWater(PointBelowBelow)) then        ! all clear, move down
             O2_buff = O2(PointBelow%Y,PointBelow%X) 
             Matrix(PointBelow%Y,PointBelow%X) = Matrix(Point%Y,Point%X)
-            if (oxygen_ON) O2(PointBelow%Y,PointBelow%X) = O2(Point%Y,Point%X)
+            if (oxygen_ON) then 
+               O2(PointBelow%Y,PointBelow%X) = O2(Point%Y,Point%X)
+               o2_nonloc(PointBelow%Y,PointBelow%X) =1
+            endif 
             Particle(Matrix(PointBelow%Y,PointBelow%X)%Value)%loc = PointBelow
             Particle2(Matrix(PointBelow%Y,PointBelow%X)%Value)%loc = PointBelow
 
@@ -3302,7 +3352,10 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
             Particle2(Matrix(PointBelow%Y,PointBelow%X)%Value)%loc_INIT = PointBelow
             Particle2(Matrix(PointBelow%Y,PointBelow%X)%Value)%loc_prev = PointBelow
             Matrix(Point%Y,Point%X) = CellContent(w,w)
-            if (oxygen_ON) O2(Point%Y,Point%X) = O2_buff
+            if (oxygen_ON) then 
+               O2(Point%Y,Point%X) = O2_buff
+               o2_nonloc(Point%Y,Point%X) = 1
+            endif 
             Point = PointBelow
             Cycle                                   ! do the next particle
          Else                                      ! else, not all clear, check densities and move down
@@ -3311,7 +3364,10 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
                O2_buff = O2(PointBelow%Y,PointBelow%X)  
                ! move down and fill the space
                Matrix(PointBelow%Y,PointBelow%X) = Matrix(Point%Y,Point%X)
-               if (oxygen_ON) O2(PointBelow%Y,PointBelow%X) = O2(Point%Y,Point%X)
+               if (oxygen_ON) then 
+                  O2(PointBelow%Y,PointBelow%X) = O2(Point%Y,Point%X)
+                  o2_nonloc(PointBelow%Y,PointBelow%X) = 1
+               endif 
                Particle(Matrix(PointBelow%Y,PointBelow%X)%Value)%loc = PointBelow
                Particle2(Matrix(PointBelow%Y,PointBelow%X)%Value)%loc = PointBelow
 
@@ -3321,7 +3377,10 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
                Particle2(Matrix(PointBELOW%Y,PointBeLOW%X)%Value)%loc_prev = PointBelow
                ! THIS IS THE FINAL SETTLING POINT
                Matrix(Point%Y,Point%X) = CellContent(w,w)
-               if (oxygen_ON) O2(Point%Y,Point%X) = O2_buff
+               if (oxygen_ON) then 
+                  O2(Point%Y,Point%X) = O2_buff
+                  o2_nonloc(Point%Y,Point%X) = 1
+               endif 
                Point = PointBelow
             End if
             Exit
@@ -3340,9 +3399,15 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
          If (IsWater(PointBeside)) then
             O2_buff = O2(PointBeside%Y,PointBeside%X) 
             Matrix(PointBeside%Y,PointBeside%X) = Matrix(Point%Y,Point%X)              
-            if (oxygen_ON) O2(PointBeside%Y,PointBeside%X) = O2(Point%Y,Point%X)
+            if (oxygen_ON) then 
+               O2(PointBeside%Y,PointBeside%X) = O2(Point%Y,Point%X)
+               o2_nonloc(PointBeside%Y,PointBeside%X) = 1
+            endif 
             Matrix(Point%Y,Point%X) = CellContent(w,w)
-            if (oxygen_ON) O2(Point%Y,Point%X) = O2_buff
+            if (oxygen_ON) then 
+               O2(Point%Y,Point%X) = O2_buff
+               o2_nonloc(Point%Y,Point%X) = 1
+            endif 
             Particle(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc = PointBeside
             Particle2(Matrix(PointBeside%Y,PointBeside%X)%Value)%loc = PointBeside
 
@@ -3450,7 +3515,10 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
          Select Case (Matrix(Y,X)%Class)
             Case(w)
                Matrix(Y_new,X) = CellContent(w,w)
-               if (oxygen_ON) O2(Y_new, X) = O2(Y, X)
+               if (oxygen_ON) then
+                  O2(Y_new, X) = O2(Y, X)
+                  o2_nonloc(Y_new, X) = 1
+               endif 
             Case(p)
                Particle_ID = Matrix(Y,X)%Value
                Particle(Particle_ID)%loc = Coordinates(Y_new, X)
@@ -3460,12 +3528,18 @@ main270:    DO X = Org_Loc(1,i)%X, Org_Loc(1,i)%X+(Org(i)%Length-1), 1
                Particle2(Particle_ID)%loc_init=particle(particle_id)%loc_init
                Particle2(Particle_ID)%loc_prev=particle(particle_id)%loc_prev
                Matrix(Y_new,X) = Matrix(Y,X)
-               if (oxygen_ON) O2(Y_new, X) = O2(Y, X)
+               if (oxygen_ON) then 
+                  O2(Y_new, X) = O2(Y, X)
+                  o2_nonloc(Y_new, X) = 1
+               endif 
                DummyVariable = Lab_real_New(Particle_ID,.false.)
             Case(1:)    ! organism
                Org_Loc(Matrix(Y,X)%Value, Matrix(Y,X)%Class) = Coordinates(Y_new, X)
                Matrix(Y_new,X) = Matrix(Y,X)
-               if (oxygen_ON) O2(Y_new, X) = O2(Y, X)
+               if (oxygen_ON) then 
+                  O2(Y_new, X) = O2(Y, X)
+                  o2_nonloc(Y_new, X) = 1
+               endif 
          End Select
       End do
    End do
@@ -3616,8 +3690,10 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
                         Matrix(ToMove_loc%Y, ToMove_loc%X) = CellContent(w,w)
                         if (oxygen_ON) then
                            O2(Y_start+1, X) = O2(Y, X)
+                           O2_nonloc(Y_start+1, X) = 1
 
                            O2(Y, X) = O2_buff 
+                           O2_nonloc(Y, X) = 1 
                         end if 
 
                         Finished = .false.
@@ -3661,6 +3737,8 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
                         if (oxygen_ON) then 
                            O2(Y_start -1,X) = O2(Y,x)
                            O2(Y,x) = O2_buff
+                           O2_nonloc(Y_start -1,X) = 1
+                           O2_nonloc(Y,x) = 1
                         end if 
 
                         Finished = .false.
@@ -3703,8 +3781,10 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
                         Matrix(ToMove_loc%Y, ToMove_loc%X) = CellContent(w,w)
                         if (oxygen_ON) then 
                            O2(Y, X_buff) = O2(Y, X)
+                           O2_nonloc(Y, X_buff) = 1
 
                            O2(Y, X) = O2_buff
+                           O2_nonloc(Y, X) = 1
                         end if
 
                         Finished = .false.
@@ -3738,6 +3818,7 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
                         Matrix(ToMove_loc%Y, ToMove_loc%X) = CellContent(w,w)
                         if (oxygen_ON) then 
                            O2(Y, X_buff) = O2(Y, X)
+                           O2_nonloc(Y, X_buff) = 1
                            if (isnan(O2(Y, X2_start)%oxygen)) then
                               print *,"NAN in oxygen",Y, X2_start
                               write(File_log, *) Time, "NAN in oxygen",Y, X2_start
@@ -3748,6 +3829,7 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
                            end if 
 
                            O2(Y, X) = O2_buff
+                           O2_nonloc(Y, X) = 1
                            if (isnan(O2(Y, X)%oxygen)) then 
                               print *,"NAN in oxygen",Y, X
                               write(File_log, *) Time, "NAN in oxygen",Y, X
@@ -3968,8 +4050,14 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
             Guts(k,i) = Block(o)
             Matrix(Block_loc(o)%Y, Block_loc(o)%X) = CellContent(w,w)
             if (oxygen_ON) then 
+               ! o2_nonloc(Block_loc(o)%Y, Block_loc(o)%X) &
+                  ! = O2(org_loc(k,i)%Y,org_loc(k,i)%X)%oxygen -O2(Block_loc(o)%Y, Block_loc(o)%X)%oxygen  
                O2(Block_loc(o)%Y, Block_loc(o)%X) = O2(org_loc(k,i)%Y,org_loc(k,i)%X) 
+               ! o2_nonloc(org_loc(k,i)%Y,org_loc(k,i)%X)  &
+                  ! = O2(Block_loc(o)%Y, Block_loc(o)%X)%oxygen-O2(org_loc(k,i)%Y,org_loc(k,i)%X)%oxygen
                O2(org_loc(k,i)%Y,org_loc(k,i)%X)  = O2_buff
+               o2_nonloc(org_loc(k,i)%Y,org_loc(k,i)%X) = 1
+               o2_nonloc(Block_loc(o)%Y, Block_loc(o)%X) = 1
             end if 
 
             Block(o) = CellContent(w,w)
@@ -4056,6 +4144,7 @@ ChooseDir: Do While (Sum(DirWeights) .ne. 0) ! else return to the main do loop
                if (oxygen_ON) then 
                   ox_buf = O2(Tail(loc)%Y,Tail(loc)%X)%oxygen 
                   O2(Tail(loc)%Y,Tail(loc)%X)%oxygen = 0.0  !! because now tail is particle, oxygen conc. should be zero
+                  O2_nonloc(Tail(loc)%Y,Tail(loc)%X) = 1
                else 
                   ox_buf = 1.
                end if 
