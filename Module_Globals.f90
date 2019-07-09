@@ -145,7 +145,7 @@
    integer(kind=4), Allocatable, Save              :: IngestionHistory(:,:), MovementHistory(:,:)
    ! added 
    integer(kind=4), Allocatable, Save              :: RespHistory(:,:), EgestHistory(:,:), Dir_rec(:,:) , swi(:)      
-   integer(kind=4), allocatable, save              :: DeathFlg(:), PopLogID(:) , o2_nonloc(:,:)   
+   integer(kind=4), allocatable, save              :: DeathFlg(:), PopLogID(:)    
    real(kind=8), Allocatable, Save                 :: Ub(:,:),Vb(:,:), Ug(:,:), Vg(:,:), Pg(:,:), Dg(:,:)  
    real(kind=8), allocatable, save                 :: Uo(:,:), Vo(:,:), edif(:,:), Uom(:,:), Vom(:,:) 
    real(kind=8), allocatable, save                 :: EnergyHistory(:,:), CurrentEnergy(:), RespCnst(:)

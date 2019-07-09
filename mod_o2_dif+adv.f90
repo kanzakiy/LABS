@@ -76,7 +76,11 @@ real(kind=8) :: oxup
 
 oxup = pal
 
-if (time==0)  print*,oxup,pal
+if (time==0)  then 
+    print'(A)','        +++++++++++++++++++'
+    print'(A,F4.2,A)','        O2 LEVEL = ',oxup, ' PAL'
+    print*
+endif 
 
 O2(:,:)%Oxygen = 0.  ! oxgen conc. 
 O2(:,:)%Oxygen_pre = 0. ! 1 if connected; 0 otherwise 
