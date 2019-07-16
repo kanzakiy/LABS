@@ -79,6 +79,7 @@ oxup = pal
 if (time==0)  then 
     print'(A)','        +++++++++++++++++++'
     print'(A,F4.2,A)','        O2 LEVEL = ',oxup, ' PAL'
+    print'(A)','        +++++++++++++++++++'
     print*
 endif 
 
@@ -991,25 +992,25 @@ if (chk_details) then
         print *, 'too large error in flx: '
         stop
     endif 
-endif 
 
-! if (abs(reso2)/minval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt/)))>1e-2  &
-    ! .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-14   &
-    ! ) then 
-if (abs(TotO2Adv) > 1d-12) then 
-    if (abs(reso2)/abs(TotO2Adv) >1d-2 &
-        .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-12   &
-        ) then 
-        print *, 'too large error in flx wrt adv: ',abs(reso2)/abs(TotO2Adv)
-        pause
+    ! if (abs(reso2)/minval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt/)))>1e-2  &
+        ! .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-14   &
+        ! ) then 
+    if (abs(TotO2Adv) > 1d-12) then 
+        if (abs(reso2)/abs(TotO2Adv) >1d-2 &
+            .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-12   &
+            ) then 
+            print *, 'too large error in flx wrt adv: ',abs(reso2)/abs(TotO2Adv)
+            pause
+        endif 
     endif 
-endif 
-if (abs(TotO2dif) > 1d-12) then 
-    if (abs(reso2)/abs(TotO2dif) >1d-2 &
-        .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-12   &
-        ) then 
-        print *, 'too large error in flx wrt dif: ',abs(reso2)/abs(TotO2dif)
-        pause
+    if (abs(TotO2dif) > 1d-12) then 
+        if (abs(reso2)/abs(TotO2dif) >1d-2 &
+            .and. maxval(abs((/TotO2dif,TotO2Adv,TotAbio, TotResp, TotOrgDecay, do2dt,reso2/)))>1e-12   &
+            ) then 
+            print *, 'too large error in flx wrt dif: ',abs(reso2)/abs(TotO2dif)
+            pause
+        endif 
     endif 
 endif 
 

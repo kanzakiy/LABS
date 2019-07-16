@@ -145,6 +145,10 @@ else
     const_top = .false.
     nstep = 10
     cat_tmp = 'o2'
+    if (max(maxval(abs(Vb)),maxval(abs(Ub)))*VelC > 1.) then  
+        nstep =100
+        delt = delt/10.
+    endif         
 endif
 
 ! reading file
